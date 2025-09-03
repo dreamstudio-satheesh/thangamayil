@@ -5,6 +5,7 @@ Point of Sale interface for creating bills and processing transactions
 
 import tkinter as tk
 from tkinter import ttk, messagebox
+from datetime import datetime
 from ..models.items import ItemsManager
 from ..models.billing import BillingManager
 from ..models.auth import auth
@@ -58,7 +59,12 @@ class POSBillingWindow:
         # Bind keyboard shortcuts
         self.window.bind('<Control-w>', lambda e: self.window.destroy())
         self.window.bind('<Escape>', lambda e: self.window.destroy())
-        self.window.bind('<Control-u>', lambda e: self.create_new_customer())  # Ctrl+Shift+C for new customer
+        self.window.bind('<Control-u>', lambda e: self.create_new_customer())  # Ctrl+U for new customer
+        self.window.bind('<Control-s>', lambda e: self.save_only())  # Ctrl+S for save only
+        self.window.bind('<Control-p>', lambda e: self.save_and_print())  # Ctrl+P for save and print
+        self.window.bind('<F9>', lambda e: self.save_only())  # F9 for save only
+        self.window.bind('<F10>', lambda e: self.save_and_print())  # F10 for save and print
+        self.window.bind('<Control-Shift-P>', lambda e: self.preview_only())  # Ctrl+Shift+P for preview only
     
     def create_widgets(self):
         """Create the UI widgets"""
@@ -265,8 +271,14 @@ class POSBillingWindow:
         ttk.Button(actions_frame, text="New Bill", command=self.new_bill_confirm, 
                   style="Accent.TButton").pack(fill=tk.X, pady=2)
         
-        ttk.Button(actions_frame, text="Save & Print", command=self.save_and_print, 
+        ttk.Button(actions_frame, text="💾 Save Only (Ctrl+S, F9)", command=self.save_only, 
+                  style="Primary.TButton").pack(fill=tk.X, pady=2)
+        
+        ttk.Button(actions_frame, text="🖨️ Save & Print (Ctrl+P, F10)", command=self.save_and_print, 
                   style="Accent.TButton").pack(fill=tk.X, pady=2)
+        
+        ttk.Button(actions_frame, text="👁️ Preview Only (Ctrl+Shift+P)", command=self.preview_only, 
+                  style="Secondary.TButton").pack(fill=tk.X, pady=2)
         
         ttk.Button(actions_frame, text="Hold Bill", command=self.hold_bill).pack(fill=tk.X, pady=2)
         
@@ -689,14 +701,38 @@ class POSBillingWindow:
         
         self.reset_bill_display()
     
-    def save_and_print(self):
-        """Save and print the current bill"""
+    def validate_bill_before_save(self):
+        """Validate bill before saving"""
         if not self.current_bill_id:
             messagebox.showwarning("No Bill", "Please start a new bill first")
-            return
+            return False
             
         if not self.bill_items:
             messagebox.showwarning("No Items", "Cannot create bill without items. Please add items to the bill first")
+            return False
+        
+        # Check if customer is selected
+        customer_name = self.customer_var.get()
+        if not customer_name or customer_name == "Select Customer":
+            result = messagebox.askyesno("No Customer", "No customer selected. Continue with 'Cash Customer'?")
+            if result:
+                # Set default cash customer
+                self.customer_var.set("Cash Customer (1234567899)")
+                self.customer_id = 1  # Assuming Cash Customer has ID 1
+            else:
+                return False
+        
+        # Check if payment mode is selected
+        payment_mode = self.payment_mode_var.get()
+        if not payment_mode:
+            messagebox.showwarning("Payment Mode", "Please select a payment mode")
+            return False
+        
+        return True
+    
+    def save_and_print(self):
+        """Save and print the current bill"""
+        if not self.validate_bill_before_save():
             return
         
         try:
@@ -719,8 +755,22 @@ class POSBillingWindow:
             if success:
                 messagebox.showinfo("Success", "Bill saved successfully!")
                 
-                # TODO: Add printing functionality here
-                messagebox.showinfo("Print", "Printing functionality to be implemented")
+                # Print the bill
+                try:
+                    from .thermal_printer import ThermalPrinter
+                    from ..database.connection import db
+                    
+                    # Get the saved bill data
+                    bill_query = "SELECT * FROM bills WHERE bill_id = ?"
+                    bill_result = db.execute_query(bill_query, (self.current_bill_id,))
+                    if bill_result:
+                        bill_data = bill_result[0]
+                        printer = ThermalPrinter()
+                        printer.print_bill(bill_data, self.window)
+                    else:
+                        messagebox.showerror("Print Error", "Could not retrieve bill data for printing")
+                except Exception as e:
+                    messagebox.showerror("Print Error", f"Failed to print bill: {e}")
                 
                 # Reset for new bill
                 self.reset_bill_display()
@@ -729,6 +779,122 @@ class POSBillingWindow:
         
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save bill: {e}")
+    
+    def save_only(self):
+        """Save the current bill without printing"""
+        if not self.validate_bill_before_save():
+            return
+        
+        try:
+            # Add all items to database
+            for bill_item in self.bill_items:
+                BillingManager.add_item_to_bill(self.current_bill_id, bill_item)
+            
+            # Calculate totals
+            try:
+                bill_discount_percent = float(self.discount_var.get() or 0)
+            except ValueError:
+                bill_discount_percent = 0
+            
+            BillingManager.calculate_bill_totals(self.current_bill_id, bill_discount_percent)
+            
+            # Finalize bill
+            payment_mode = self.payment_mode_var.get()
+            success = BillingManager.finalize_bill(self.current_bill_id, payment_mode)
+            
+            if success:
+                messagebox.showinfo("Success", "Bill saved successfully!")
+                
+                # Ask if user wants to print later
+                print_later = messagebox.askyesno("Print Bill", "Bill saved successfully! Do you want to print it now?")
+                if print_later:
+                    try:
+                        from .thermal_printer import ThermalPrinter
+                        from ..database.connection import db
+                        
+                        # Get the saved bill data
+                        bill_query = "SELECT * FROM bills WHERE bill_id = ?"
+                        bill_result = db.execute_query(bill_query, (self.current_bill_id,))
+                        if bill_result:
+                            bill_data = bill_result[0]
+                            printer = ThermalPrinter()
+                            printer.print_bill(bill_data, self.window)
+                        else:
+                            messagebox.showerror("Print Error", "Could not retrieve bill data for printing")
+                    except Exception as e:
+                        messagebox.showerror("Print Error", f"Failed to print bill: {e}")
+                
+                # Reset for new bill
+                self.reset_bill_display()
+            else:
+                messagebox.showerror("Error", "Failed to save bill")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save bill: {e}")
+    
+    def preview_only(self):
+        """Preview the bill without saving or printing"""
+        if not self.current_bill_id:
+            messagebox.showwarning("No Bill", "Please start a new bill first")
+            return
+            
+        if not self.bill_items:
+            messagebox.showwarning("No Items", "Cannot preview bill without items. Please add items to the bill first")
+            return
+        
+        try:
+            from .thermal_printer import ThermalPrinter
+            from ..database.connection import db
+            
+            # Create a temporary bill data structure for preview
+            temp_bill_data = {
+                'bill_id': 'PREVIEW',
+                'invoice_number': f'PREVIEW-{self.current_bill_id}',
+                'bill_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'customer_id': getattr(self, 'customer_id', 1),
+                'discount_amount': 0,
+                'cgst_amount': 0,
+                'sgst_amount': 0,
+                'igst_amount': 0,
+                'round_off': 0,
+                'grand_total': self.calculate_preview_total(),
+                'payment_mode': self.payment_mode_var.get() or 'CASH',
+                'is_cancelled': 0
+            }
+            
+            # Generate preview content
+            printer = ThermalPrinter()
+            content = printer.generate_thermal_bill_preview(temp_bill_data, self.bill_items)
+            
+            if content:
+                # Show enhanced preview window
+                printer.show_enhanced_preview(content, self.window, is_preview_mode=True)
+            else:
+                messagebox.showerror("Error", "Failed to generate bill preview")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to preview bill: {e}")
+    
+    def calculate_preview_total(self):
+        """Calculate total for preview without saving to database"""
+        total = 0
+        try:
+            bill_discount_percent = float(self.discount_var.get() or 0)
+        except ValueError:
+            bill_discount_percent = 0
+            
+        for item in self.bill_items:
+            line_total = item['unit_price'] * item['quantity']
+            discount = (line_total * item['discount_percentage']) / 100
+            after_discount = line_total - discount
+            gst_amount = (after_discount * item['gst_percentage']) / 100
+            total += after_discount + gst_amount
+        
+        # Apply bill discount
+        if bill_discount_percent > 0:
+            total = total - (total * bill_discount_percent / 100)
+            
+        return total
     
     def hold_bill(self):
         """Hold current bill"""
