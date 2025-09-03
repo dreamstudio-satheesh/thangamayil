@@ -253,7 +253,7 @@ class MainWindow:
         try:
             from .pos_billing import POSBillingWindow
             billing_window = POSBillingWindow()
-            billing_window.show()
+            billing_window.show(parent=self.root)
         except Exception as e:
             messagebox.showerror("Error", f"Could not open POS billing: {str(e)}")
     
@@ -262,7 +262,7 @@ class MainWindow:
         try:
             from .items_management import ItemsManagementWindow
             items_window = ItemsManagementWindow()
-            items_window.show()
+            items_window.show(parent=self.root)
         except Exception as e:
             messagebox.showerror("Error", f"Could not open items management: {str(e)}")
     
@@ -271,7 +271,7 @@ class MainWindow:
         try:
             from .bill_management import BillManagementWindow
             bills_window = BillManagementWindow()
-            bills_window.show()
+            bills_window.show(parent=self.root)
         except Exception as e:
             messagebox.showerror("Error", f"Could not open bill management: {str(e)}")
     
@@ -280,7 +280,7 @@ class MainWindow:
         try:
             from .staff_management import StaffManagementWindow
             staff_window = StaffManagementWindow()
-            staff_window.show()
+            staff_window.show(parent=self.root)
         except Exception as e:
             messagebox.showerror("Error", f"Could not open staff management: {str(e)}")
     
@@ -289,7 +289,7 @@ class MainWindow:
         try:
             from .reports import ReportsWindow
             reports_window = ReportsWindow()
-            reports_window.show()
+            reports_window.show(parent=self.root)
         except Exception as e:
             messagebox.showerror("Error", f"Could not open reports: {str(e)}")
     

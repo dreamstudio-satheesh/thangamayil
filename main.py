@@ -48,14 +48,16 @@ class BillingApplication:
         """Show application splash screen"""
         splash = tk.Tk()
         splash.title(APP_NAME)
-        splash.geometry("400x200")
+        splash.geometry("500x300")
         splash.resizable(False, False)
         
-        # Center splash screen
+        # Center splash screen (same as login window)
         splash.update_idletasks()
-        x = (splash.winfo_screenwidth() // 2) - (splash.winfo_width() // 2)
-        y = (splash.winfo_screenheight() // 2) - (splash.winfo_height() // 2)
-        splash.geometry(f"+{x}+{y}")
+        width = splash.winfo_width()
+        height = splash.winfo_height()
+        x = (splash.winfo_screenwidth() // 2) - (width // 2)
+        y = (splash.winfo_screenheight() // 2) - (height // 2)
+        splash.geometry(f"{width}x{height}+{x}+{y}")
         
         # Splash content
         tk.Label(splash, text=APP_NAME, font=("Arial", 16, "bold")).pack(pady=20)

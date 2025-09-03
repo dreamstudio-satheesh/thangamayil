@@ -125,17 +125,39 @@ python main.py
 
 ```
 src/thangamayil/
-├── __init__.py           # Package initialization
+├── __init__.py           # Package initialization with app metadata
 ├── database/
-│   ├── connection.py     # SQLite database connection and operations
+│   ├── __init__.py
+│   └── connection.py     # SQLite connection, schema initialization
 ├── models/
-│   ├── auth.py          # Authentication and staff management
-│   ├── items.py         # Items and inventory management
-│   └── billing.py       # Billing operations and GST calculations
-└── ui/
-    ├── login.py         # Login window (GUI)
-    └── main_window.py   # Main application window (GUI)
+│   ├── __init__.py
+│   ├── auth.py          # AuthManager, StaffManager classes
+│   ├── items.py         # ItemsManager for inventory operations
+│   └── billing.py       # BillingManager, GSTCalculator classes
+├── ui/                   # Complete Tkinter GUI components
+│   ├── __init__.py
+│   ├── login.py         # Staff login window
+│   ├── main_window.py   # Main application dashboard
+│   ├── pos_billing.py   # POS billing interface
+│   ├── items_management.py  # Items CRUD interface
+│   ├── staff_management.py  # Staff administration
+│   ├── bill_management.py   # Bill history and management
+│   ├── bill_edit.py     # Individual bill editing
+│   ├── bill_details.py  # Bill detail viewer
+│   ├── item_edit.py     # Item editor dialog
+│   ├── reports.py       # Reports generation interface
+│   └── thermal_printer.py  # Printer integration
+├── reports/             # Report generation modules
+└── utils/               # Utility functions
 ```
+
+## Entry Points
+
+- **console_app.py** - Full-featured console interface (recommended for development)
+- **main.py** - Primary GUI application entry point
+- **run_console.py** - Alternative console launcher
+- **run_gui.py** - GUI launcher with error handling
+- **run_gui_safe.py** - GUI launcher with enhanced safety checks
 
 ## Key Features Implemented
 
@@ -177,6 +199,23 @@ src/thangamayil/
 
 ## Database Management
 
+### Architecture
+The application uses a `DatabaseConnection` class that:
+- Automatically creates `thangamayil.db` on first run
+- Initializes schema from `db.sql` file  
+- Provides connection pooling and row factory for named column access
+- Handles transaction management and error recovery
+
+### Key Tables
+- **staff** - Authentication with bcrypt password hashing
+- **items** - Product catalog with barcode, price, GST%, stock
+- **categories** - Item categorization
+- **customers** - Optional customer data
+- **bills** - Invoice headers with staff association
+- **bill_items** - Line items with quantity, discounts, GST calculations
+- **stock_movements** - Inventory tracking
+- **settings** - Application configuration
+
 ### Initialize Database
 The database is automatically created and initialized on first run using `db.sql` schema.
 
@@ -193,17 +232,23 @@ cp thangamayil.db backup/thangamayil_$(date +%Y%m%d_%H%M%S).db
 # Run core functionality tests
 python test_core.py
 
+# Run GUI tests (requires tkinter)
+python test_gui_simple.py
+
 # Run with activated virtual environment
 source .venv/bin/activate && python test_core.py
 ```
 
 ### Code Quality
 ```bash
-# Format code (if installed)
+# Format code (configured for line-length 88)
 black src/ *.py
 
-# Lint code (if installed)
+# Lint code
 flake8 src/ *.py
+
+# Run with optional dev dependencies
+uv pip install -e ".[dev]"
 ```
 
 ### Package Building
@@ -213,6 +258,10 @@ uv build
 
 # Install in development mode
 uv pip install -e .
+
+# Create Windows executable
+pip install pyinstaller
+pyinstaller --onefile --windowed main.py --name="ThangamayilBilling"
 ```
 
 ## Hardware Integration Notes
@@ -264,6 +313,31 @@ pyinstaller --onefile --windowed main.py --name="ThangamayilBilling"
 ## File Locations
 
 - **Database:** `thangamayil.db` (SQLite file)
+- **Schema:** `db.sql` (database initialization script)
 - **Backups:** Created in project root or user-specified location
 - **Logs:** Application prints to console
 - **Configuration:** Stored in database settings table
+
+## Architecture Patterns
+
+### Global Database Instance
+The application uses a global `db` instance from `thangamayil.database.connection` that provides:
+- `get_single_result()` - Single row queries
+- `get_multiple_results()` - Multi-row queries  
+- `execute_query()` - Insert/Update/Delete operations
+- Automatic connection management and error handling
+
+### Manager Pattern
+Business logic is organized into manager classes:
+- **AuthManager** - Login/logout, session management
+- **StaffManager** - Staff CRUD operations
+- **ItemsManager** - Inventory management 
+- **BillingManager** - Invoice creation and management
+- **GSTCalculator** - Tax calculations (CGST/SGST/IGST)
+
+### UI Architecture
+GUI components follow a consistent pattern:
+- Each window/dialog is a separate module in `ui/`
+- Manager classes handle business logic
+- UI components focus on presentation and user interaction
+- Consistent error handling and user feedback

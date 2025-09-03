@@ -32,10 +32,13 @@ class LoginWindow:
         self.root.after(10, lambda: self.username_entry.focus_set())
         self.root.after(100, lambda: self.username_entry.focus_force())
         
+        # Set up window close handler
+        self.root.protocol("WM_DELETE_WINDOW", self.on_window_close)
+        
         # Bind keyboard shortcuts
         self.root.bind('<Return>', lambda event: self.login())
-        self.root.bind('<Escape>', lambda event: self.root.quit())
-        self.root.bind('<Alt-F4>', lambda event: self.root.quit())
+        self.root.bind('<Escape>', lambda event: self.on_window_close())
+        self.root.bind('<Alt-F4>', lambda event: self.on_window_close())
         
         # Store login result
         self.login_successful = False
@@ -212,12 +215,24 @@ class LoginWindow:
         self.password_entry.delete(0, tk.END)
         self.password_entry.focus()
     
+    def on_window_close(self):
+        """Handle window close event"""
+        self.login_successful = False
+        self.root.quit()
+    
     def run(self):
         """Run the login window"""
-        self.root.mainloop()
-        success = self.login_successful
-        self.root.destroy()  # Clean up after mainloop
-        return success
+        try:
+            self.root.mainloop()
+            success = self.login_successful
+            try:
+                self.root.destroy()  # Clean up after mainloop
+            except tk.TclError:
+                pass  # Window already destroyed
+            return success
+        except tk.TclError:
+            # Window was already destroyed
+            return False
 
 
 def show_login():

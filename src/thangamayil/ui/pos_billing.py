@@ -33,13 +33,18 @@ class POSBillingWindow:
         self.gst_var = tk.StringVar(value="₹0.00")
         self.total_var = tk.StringVar(value="₹0.00")
     
-    def show(self):
+    def show(self, parent=None):
         """Display the POS billing window"""
-        self.window = tk.Toplevel()
+        self.window = tk.Toplevel(parent)
         self.window.title("POS Billing - தங்கமயில் சில்க்ஸ்")
         self.window.geometry("1200x800")
+        
+        # Set up proper window cleanup
+        self.window.protocol("WM_DELETE_WINDOW", self.close_window)
+        
         try:
-            self.window.transient()
+            if parent:
+                self.window.transient(parent)
             self.window.grab_set()
         except tk.TclError:
             pass  # Skip if parent window is not available
@@ -57,14 +62,24 @@ class POSBillingWindow:
         self.barcode_entry.focus()
         
         # Bind keyboard shortcuts
-        self.window.bind('<Control-w>', lambda e: self.window.destroy())
-        self.window.bind('<Escape>', lambda e: self.window.destroy())
+        self.window.bind('<Control-w>', lambda e: self.close_window())
+        self.window.bind('<Escape>', lambda e: self.close_window())
         self.window.bind('<Control-u>', lambda e: self.create_new_customer())  # Ctrl+U for new customer
         self.window.bind('<Control-s>', lambda e: self.save_only())  # Ctrl+S for save only
         self.window.bind('<Control-p>', lambda e: self.save_and_print())  # Ctrl+P for save and print
         self.window.bind('<F9>', lambda e: self.save_only())  # F9 for save only
         self.window.bind('<F10>', lambda e: self.save_and_print())  # F10 for save and print
         self.window.bind('<Control-Shift-P>', lambda e: self.preview_only())  # Ctrl+Shift+P for preview only
+    
+    def close_window(self):
+        """Properly close the POS billing window"""
+        if self.window:
+            try:
+                self.window.grab_release()
+            except tk.TclError:
+                pass
+            self.window.destroy()
+            self.window = None
     
     def create_widgets(self):
         """Create the UI widgets"""

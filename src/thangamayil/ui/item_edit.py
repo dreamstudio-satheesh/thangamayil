@@ -17,8 +17,13 @@ class EditBillItemDialog:
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(f"Edit Item - {bill_item['item_name']}")
         self.dialog.geometry("400x200")
+        
+        # Set up proper window cleanup
+        self.dialog.protocol("WM_DELETE_WINDOW", self.close_dialog)
+        
         try:
-            self.dialog.transient(parent)
+            if parent:
+                self.dialog.transient(parent)
             self.dialog.grab_set()
         except tk.TclError:
             pass
@@ -95,4 +100,12 @@ class EditBillItemDialog:
         updated_item['discount_percentage'] = discount
         
         self.result = updated_item
+        self.close_dialog()
+    
+    def close_dialog(self):
+        """Properly close the dialog"""
+        try:
+            self.dialog.grab_release()
+        except tk.TclError:
+            pass
         self.dialog.destroy()

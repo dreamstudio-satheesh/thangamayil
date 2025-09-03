@@ -16,13 +16,18 @@ class StaffManagementWindow:
         self.staff_listbox = None
         self.staff_data = []
     
-    def show(self):
+    def show(self, parent=None):
         """Display the staff management window"""
-        self.window = tk.Toplevel()
+        self.window = tk.Toplevel(parent)
         self.window.title("Staff Management - தங்கமயில் சில்க்ஸ்")
         self.window.geometry("800x600")
+        
+        # Set up proper window cleanup
+        self.window.protocol("WM_DELETE_WINDOW", self.close_window)
+        
         try:
-            self.window.transient()
+            if parent:
+                self.window.transient(parent)
             self.window.grab_set()
         except tk.TclError:
             pass  # Skip if parent window is not available
@@ -35,6 +40,16 @@ class StaffManagementWindow:
         x = (self.window.winfo_screenwidth() // 2) - (self.window.winfo_width() // 2)
         y = (self.window.winfo_screenheight() // 2) - (self.window.winfo_height() // 2)
         self.window.geometry(f"+{x}+{y}")
+    
+    def close_window(self):
+        """Properly close the staff management window"""
+        if self.window:
+            try:
+                self.window.grab_release()
+            except tk.TclError:
+                pass
+            self.window.destroy()
+            self.window = None
     
     def create_widgets(self):
         """Create the UI widgets"""
