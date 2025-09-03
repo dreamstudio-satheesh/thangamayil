@@ -4,7 +4,7 @@ Handles user login and session initialization
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 from ..models.auth import auth
 
 
@@ -14,8 +14,8 @@ class LoginWindow:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("தங்கமயில் சில்க்ஸ் - Staff Login")
-        self.root.geometry("400x300")
-        self.root.resizable(False, False)
+        self.root.geometry("700x700")
+        self.root.resizable(True, True)
         
         # Center the window
         self.center_window()
@@ -26,11 +26,16 @@ class LoginWindow:
         # Create UI elements
         self.create_widgets()
         
-        # Set focus to username entry
-        self.username_entry.focus()
+        # Set focus to username entry - multiple methods for reliability
+        self.username_entry.focus_set()
+        self.username_entry.focus_force()
+        self.root.after(10, lambda: self.username_entry.focus_set())
+        self.root.after(100, lambda: self.username_entry.focus_force())
         
-        # Bind Enter key to login
+        # Bind keyboard shortcuts
         self.root.bind('<Return>', lambda event: self.login())
+        self.root.bind('<Escape>', lambda event: self.root.quit())
+        self.root.bind('<Alt-F4>', lambda event: self.root.quit())
         
         # Store login result
         self.login_successful = False
@@ -47,64 +52,120 @@ class LoginWindow:
     def setup_styles(self):
         """Configure UI styles"""
         style = ttk.Style()
-        style.configure("Title.TLabel", font=("Arial", 16, "bold"))
-        style.configure("Login.TButton", font=("Arial", 10, "bold"), padding=10)
+        
+        # Modern color palette
+        colors = {
+            'primary': '#2C5282',      # Deep blue
+            'secondary': '#B8860B',    # Gold
+            'accent': '#38A169',       # Green
+            'bg_light': '#F7FAFC',     # Light gray
+            'bg_card': '#FFFFFF',      # White
+            'text_primary': '#2D3748', # Dark gray
+            'text_secondary': '#718096' # Medium gray
+        }
+        
+        # Configure modern styles
+        style.configure("Title.TLabel", 
+                       font=("Segoe UI", 20, "bold"), 
+                       foreground=colors['primary'])
+        
+        style.configure("Subtitle.TLabel", 
+                       font=("Segoe UI", 11), 
+                       foreground=colors['text_secondary'])
+        
+        style.configure("Modern.TLabel", 
+                       font=("Segoe UI", 10), 
+                       foreground=colors['text_primary'])
+        
+        style.configure("Login.TButton", 
+                       font=("Segoe UI", 11, "bold"), 
+                       padding=(20, 12),
+                       focuscolor='none')
+        
+        style.map("Login.TButton",
+                 background=[('active', colors['primary']),
+                           ('pressed', '#1A365D')],
+                 foreground=[('active', 'white'),
+                           ('pressed', 'white'),
+                           ('!active', colors['text_primary'])])
+        
+        style.configure("Modern.TEntry", 
+                       font=("Segoe UI", 11),
+                       fieldbackground=colors['bg_card'],
+                       padding=10)
+        
+        # Set window background
+        self.root.configure(bg=colors['bg_light'])
     
     def create_widgets(self):
         """Create and layout UI widgets"""
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding="30")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Main card frame with modern styling
+        card_frame = tk.Frame(self.root, bg='white', relief='solid', bd=1)
+        card_frame.pack(expand=True, fill='both', padx=50, pady=50)
         
-        # Configure grid weights
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
+        # Inner content frame - use tk.Frame instead of ttk.Frame
+        main_frame = tk.Frame(card_frame, bg='white')
+        main_frame.pack(expand=True, fill='both', padx=50, pady=50)
         
-        # Title
-        title_label = ttk.Label(
+        # Title with modern styling
+        title_label = tk.Label(
             main_frame, 
-            text="தங்கமயில் சில்க்ஸ்", 
-            style="Title.TLabel"
+            text="🏪 தங்கமயில் சில்க்ஸ்", 
+            font=("Segoe UI", 20, "bold"),
+            fg="#2C5282",
+            bg="white"
         )
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 10))
+        title_label.pack(pady=(0, 8))
         
-        subtitle_label = ttk.Label(
+        subtitle_label = tk.Label(
             main_frame, 
             text="Billing Software - Staff Login", 
-            font=("Arial", 10)
+            font=("Segoe UI", 11),
+            fg="#718096",
+            bg="white"
         )
-        subtitle_label.grid(row=1, column=0, columnspan=2, pady=(0, 30))
+        subtitle_label.pack(pady=(0, 40))
+        
+        # Input fields container
+        fields_frame = tk.Frame(main_frame, bg='white')
+        fields_frame.pack(fill='x', pady=(0, 30))
         
         # Username field
-        ttk.Label(main_frame, text="Staff Name:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.username_entry = ttk.Entry(main_frame, width=25, font=("Arial", 10))
-        self.username_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        tk.Label(fields_frame, text="👤 Staff Name", 
+                font=("Segoe UI", 10), fg="#2D3748", bg="white").pack(anchor='w', pady=(0, 8))
+        self.username_entry = tk.Entry(fields_frame, 
+                                     font=("Segoe UI", 11), 
+                                     relief='solid', bd=1,
+                                     highlightthickness=2,
+                                     highlightcolor="#2C5282")
+        self.username_entry.pack(fill='x', pady=(0, 20), ipady=8)
         
         # Password field
-        ttk.Label(main_frame, text="Password:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.password_entry = ttk.Entry(main_frame, show="*", width=25, font=("Arial", 10))
-        self.password_entry.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        tk.Label(fields_frame, text="🔐 Password", 
+                font=("Segoe UI", 10), fg="#2D3748", bg="white").pack(anchor='w', pady=(0, 8))
+        self.password_entry = tk.Entry(fields_frame, show="*", 
+                                     font=("Segoe UI", 11), 
+                                     relief='solid', bd=1,
+                                     highlightthickness=2,
+                                     highlightcolor="#2C5282")
+        self.password_entry.pack(fill='x', ipady=8)
         
-        # Login button
+        # Login button with proper centering
+        button_frame = tk.Frame(main_frame, bg='white')
+        button_frame.pack(fill='x', pady=(30, 20))
+        
         self.login_button = ttk.Button(
-            main_frame, 
-            text="Login", 
+            button_frame, 
+            text="🚀 Login", 
             command=self.login, 
             style="Login.TButton"
         )
-        self.login_button.grid(row=4, column=0, columnspan=2, pady=30)
+        self.login_button.pack(expand=True)
         
         # Status label
-        self.status_label = ttk.Label(main_frame, text="", foreground="red")
-        self.status_label.grid(row=5, column=0, columnspan=2)
+        self.status_label = tk.Label(main_frame, text="", fg="#E53E3E", bg="white", font=("Segoe UI", 10))
+        self.status_label.pack(pady=(0, 20))
         
-        # Default credentials info
-        info_frame = ttk.LabelFrame(main_frame, text="Default Credentials", padding="10")
-        info_frame.grid(row=6, column=0, columnspan=2, pady=20, sticky=(tk.W, tk.E))
-        
-        ttk.Label(info_frame, text="Username: admin").pack(anchor=tk.W)
-        ttk.Label(info_frame, text="Password: admin123").pack(anchor=tk.W)
     
     def login(self):
         """Handle login attempt"""
@@ -130,7 +191,6 @@ class LoginWindow:
         try:
             if auth.login(username, password):
                 self.login_successful = True
-                messagebox.showinfo("Success", f"Welcome, {username}!")
                 self.root.quit()  # Use quit() instead of destroy()
                 return
             else:

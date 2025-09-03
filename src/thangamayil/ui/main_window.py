@@ -39,132 +39,203 @@ class MainWindow:
         
         # Handle window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+        # Bind keyboard shortcuts
+        self.setup_shortcuts()
     
     def setup_styles(self):
         """Configure UI styles"""
         style = ttk.Style()
         
-        # Configure button styles
+        # Modern color palette
+        colors = {
+            'primary': '#2C5282',      # Deep blue
+            'secondary': '#B8860B',    # Gold
+            'accent': '#38A169',       # Green
+            'bg_main': '#F7FAFC',      # Light gray background
+            'bg_card': '#FFFFFF',      # Card background
+            'text_primary': '#2D3748', # Dark gray
+            'text_secondary': "#0D408D", # Medium gray
+            'border': '#E2E8F0'        # Light border
+        }
+        
+        # Set main window background
+        self.root.configure(bg=colors['bg_main'])
+        
+        # Modern button styles
         style.configure("MainMenu.TButton", 
-                       font=("Arial", 12, "bold"), 
-                       padding=(20, 15))
+                       font=("Segoe UI", 12, "bold"), 
+                       padding=(25, 18),
+                       focuscolor='none',
+                       foreground=colors['text_primary'])
         
+        style.map("MainMenu.TButton",
+                 background=[('active', colors['primary']),
+                           ('pressed', '#1A365D'),
+                           ('!active', colors['bg_card'])],
+                 foreground=[('active', 'white'),
+                           ('pressed', 'white'),
+                           ('!active', colors['text_primary'])])
+        
+        # Header styling
         style.configure("Header.TLabel", 
-                       font=("Arial", 18, "bold"))
+                       font=("Segoe UI", 22, "bold"),
+                       foreground=colors['primary'],
+                       background=colors['bg_main'])
         
+        # Status bar styling
         style.configure("Status.TLabel", 
-                       font=("Arial", 10))
+                       font=("Segoe UI", 10),
+                       foreground=colors['text_secondary'],
+                       background=colors['bg_card'])
+        
+        # Panel frame styling
+        style.configure("Card.TLabelframe", 
+                       borderwidth=1,
+                       relief='solid',
+                       background=colors['bg_card'])
+        
+        style.configure("Card.TLabelframe.Label", 
+                       font=("Segoe UI", 12, "bold"),
+                       foreground=colors['text_primary'],
+                       background=colors['bg_card'])
     
     def create_layout(self):
         """Create main window layout"""
-        # Header frame
-        header_frame = ttk.Frame(self.root)
-        header_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Modern header frame with background
+        header_frame = tk.Frame(self.root, bg='white', height=80)
+        header_frame.pack(fill=tk.X, padx=0, pady=0)
+        header_frame.pack_propagate(False)
         
-        # Title
+        # Inner header content
+        header_content = ttk.Frame(header_frame)
+        header_content.pack(fill='both', expand=True, padx=20, pady=15)
+        
+        # Title with icon
         title_label = ttk.Label(
-            header_frame, 
-            text="தங்கமயில் சில்க்ஸ் - Billing Software",
+            header_content, 
+            text="🏪 தங்கமயில் சில்க்ஸ் - Billing Software",
             style="Header.TLabel"
         )
         title_label.pack(side=tk.LEFT)
         
-        # Logout button
+        # Logout button with modern styling
         logout_btn = ttk.Button(
-            header_frame,
-            text="Logout",
+            header_content,
+            text="🚪 Logout (Ctrl+Q)",
             command=self.logout
         )
         logout_btn.pack(side=tk.RIGHT)
         
-        # Main content frame
+        # Main content frame with modern spacing
         main_frame = ttk.Frame(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
         
         # Configure grid
         main_frame.columnconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(0, weight=1)
         
-        # Left panel - Primary operations
-        left_panel = ttk.LabelFrame(main_frame, text="Primary Operations", padding=20)
-        left_panel.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
+        # Left panel - Primary operations with card styling
+        left_panel = ttk.LabelFrame(main_frame, text="💼 Primary Operations", 
+                                  style="Card.TLabelframe", padding=25)
+        left_panel.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 15))
         
         # POS Billing button
         pos_btn = ttk.Button(
             left_panel,
-            text="🛒 New Bill / POS",
+            text="🛒 New Bill / POS (F1, Ctrl+N)",
             style="MainMenu.TButton",
             command=self.open_pos_billing
         )
-        pos_btn.pack(fill=tk.X, pady=10)
+        pos_btn.pack(fill=tk.X, pady=15)
         
         # Items Management button
         items_btn = ttk.Button(
             left_panel,
-            text="📦 Items Master",
+            text="📦 Items Master (F2, Ctrl+I)",
             style="MainMenu.TButton",
             command=self.open_items_management
         )
-        items_btn.pack(fill=tk.X, pady=10)
+        items_btn.pack(fill=tk.X, pady=15)
         
         # Reports button
         reports_btn = ttk.Button(
             left_panel,
-            text="📊 Reports",
+            text="📊 Reports (F3, Ctrl+R)",
             style="MainMenu.TButton",
             command=self.open_reports
         )
-        reports_btn.pack(fill=tk.X, pady=10)
+        reports_btn.pack(fill=tk.X, pady=15)
         
-        # Right panel - Management operations
-        right_panel = ttk.LabelFrame(main_frame, text="Management", padding=20)
-        right_panel.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(10, 0))
+        # Right panel - Management operations with card styling
+        right_panel = ttk.LabelFrame(main_frame, text="⚙️ Management", 
+                                   style="Card.TLabelframe", padding=25)
+        right_panel.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(15, 0))
         
         # Staff Management button
         staff_btn = ttk.Button(
             right_panel,
-            text="👥 Staff Management",
+            text="👥 Staff Management (Ctrl+U)",
             style="MainMenu.TButton",
             command=self.open_staff_management
         )
-        staff_btn.pack(fill=tk.X, pady=10)
+        staff_btn.pack(fill=tk.X, pady=15)
         
         # Settings button
         settings_btn = ttk.Button(
             right_panel,
-            text="⚙️ Settings",
+            text="⚙️ Settings (Ctrl+S)",
             style="MainMenu.TButton",
             command=self.open_settings
         )
-        settings_btn.pack(fill=tk.X, pady=10)
+        settings_btn.pack(fill=tk.X, pady=15)
         
         # Backup button
         backup_btn = ttk.Button(
             right_panel,
-            text="💾 Database Backup",
+            text="💾 Database Backup (Ctrl+B)",
             style="MainMenu.TButton",
             command=self.create_backup
         )
-        backup_btn.pack(fill=tk.X, pady=10)
+        backup_btn.pack(fill=tk.X, pady=15)
         
-        # Status bar
-        status_frame = ttk.Frame(self.root)
+        # Modern status bar
+        status_frame = tk.Frame(self.root, bg='white', height=30)
         status_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        status_frame.pack_propagate(False)
         
         self.status_label = ttk.Label(
             status_frame,
-            text="Ready",
-            style="Status.TLabel",
-            relief=tk.SUNKEN
+            text="🟢 Ready",
+            style="Status.TLabel"
         )
-        self.status_label.pack(fill=tk.X, padx=5, pady=2)
+        self.status_label.pack(side=tk.LEFT, padx=15, pady=8)
+    
+    def setup_shortcuts(self):
+        """Setup keyboard shortcuts for primary operations"""
+        # Primary operations shortcuts
+        self.root.bind('<Control-n>', lambda e: self.open_pos_billing())  # Ctrl+N for New Bill
+        self.root.bind('<Control-i>', lambda e: self.open_items_management())  # Ctrl+I for Items
+        self.root.bind('<Control-r>', lambda e: self.open_reports())  # Ctrl+R for Reports
+        self.root.bind('<Control-u>', lambda e: self.open_staff_management())  # Ctrl+U for Users/Staff
+        self.root.bind('<Control-s>', lambda e: self.open_settings())  # Ctrl+S for Settings
+        self.root.bind('<Control-b>', lambda e: self.create_backup())  # Ctrl+B for Backup
+        
+        # Function keys
+        self.root.bind('<F1>', lambda e: self.open_pos_billing())  # F1 for POS
+        self.root.bind('<F2>', lambda e: self.open_items_management())  # F2 for Items
+        self.root.bind('<F3>', lambda e: self.open_reports())  # F3 for Reports
+        
+        # Logout shortcuts
+        self.root.bind('<Control-q>', lambda e: self.logout())  # Ctrl+Q for Quit/Logout
+        self.root.bind('<Alt-F4>', lambda e: self.on_closing())  # Alt+F4 for Exit
     
     def update_status(self):
         """Update status bar with current user info"""
         if auth.is_logged_in():
             staff_name = auth.get_current_staff_name()
-            self.status_label.config(text=f"Logged in as: {staff_name} | Ready")
+            self.status_label.config(text=f"👤 {staff_name} | 🟢 Ready")
     
     def open_pos_billing(self):
         """Open POS billing window"""

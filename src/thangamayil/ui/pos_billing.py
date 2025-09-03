@@ -23,6 +23,8 @@ class POSBillingWindow:
         self.search_var = tk.StringVar()
         self.discount_var = tk.StringVar(value="0")
         self.payment_mode_var = tk.StringVar(value="CASH")
+        self.customer_var = tk.StringVar()
+        self.selected_customer_id = None
         
         # Total variables
         self.subtotal_var = tk.StringVar(value="₹0.00")
@@ -52,6 +54,10 @@ class POSBillingWindow:
         
         # Focus on barcode entry
         self.barcode_entry.focus()
+        
+        # Bind keyboard shortcuts
+        self.window.bind('<Control-w>', lambda e: self.window.destroy())
+        self.window.bind('<Escape>', lambda e: self.window.destroy())
     
     def create_widgets(self):
         """Create the UI widgets"""
@@ -184,6 +190,9 @@ class POSBillingWindow:
         
         # Totals section
         self.create_totals_section(right_panel)
+        
+        # Customer section
+        self.create_customer_section(right_panel)
         
         # Payment section
         self.create_payment_section(right_panel)
@@ -486,6 +495,124 @@ class POSBillingWindow:
         self.gst_var.set(f"₹{total_gst:.2f}")
         self.total_var.set(f"₹{grand_total:.2f}")
     
+    def create_customer_section(self, parent):
+        """Create customer section"""
+        customer_frame = ttk.LabelFrame(parent, text="👤 Customer", padding="15")
+        customer_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Customer entry with search
+        customer_entry_frame = ttk.Frame(customer_frame)
+        customer_entry_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(customer_entry_frame, text="Customer:").pack(anchor=tk.W)
+        
+        entry_button_frame = ttk.Frame(customer_entry_frame)
+        entry_button_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        self.customer_entry = ttk.Entry(entry_button_frame, textvariable=self.customer_var)
+        self.customer_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.customer_entry.bind('<KeyRelease>', self.on_customer_search)
+        
+        ttk.Button(entry_button_frame, text="➕", command=self.create_new_customer, 
+                  width=3).pack(side=tk.RIGHT, padx=(5, 0))
+        
+        # Customer search results (hidden initially)
+        self.customer_results_frame = ttk.Frame(customer_frame)
+        self.customer_results_frame.pack(fill=tk.X, pady=(5, 0))
+        self.customer_results_frame.pack_forget()  # Hide initially
+        
+        self.customer_listbox = tk.Listbox(self.customer_results_frame, height=3)
+        self.customer_listbox.pack(fill=tk.X)
+        self.customer_listbox.bind('<Double-1>', self.select_customer)
+        self.customer_listbox.bind('<Return>', self.select_customer)
+        
+        # Selected customer display
+        self.selected_customer_label = ttk.Label(customer_frame, text="No customer selected", 
+                                               foreground="gray")
+        self.selected_customer_label.pack(anchor=tk.W, pady=(5, 0))
+    
+    def on_customer_search(self, event):
+        """Handle customer search"""
+        search_term = self.customer_var.get().strip()
+        if len(search_term) >= 2:
+            self.search_customers(search_term)
+        else:
+            self.hide_customer_results()
+    
+    def search_customers(self, search_term):
+        """Search for customers"""
+        try:
+            from ..database.connection import db
+            
+            query = '''
+            SELECT customer_id, customer_name, phone_number 
+            FROM customers 
+            WHERE customer_name LIKE ? OR phone_number LIKE ?
+            ORDER BY customer_name
+            LIMIT 10
+            '''
+            
+            results = db.execute_query(query, (f'%{search_term}%', f'%{search_term}%'))
+            
+            # Clear previous results
+            self.customer_listbox.delete(0, tk.END)
+            
+            if results:
+                # Show results
+                for customer in results:
+                    display_text = f"{customer['customer_name']}"
+                    if customer['phone_number']:
+                        display_text += f" - {customer['phone_number']}"
+                    self.customer_listbox.insert(tk.END, display_text)
+                
+                # Store customer data
+                self.customer_search_results = results
+                self.show_customer_results()
+            else:
+                self.hide_customer_results()
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Customer search failed: {e}")
+    
+    def show_customer_results(self):
+        """Show customer search results"""
+        self.customer_results_frame.pack(fill=tk.X, pady=(5, 0))
+    
+    def hide_customer_results(self):
+        """Hide customer search results"""
+        self.customer_results_frame.pack_forget()
+    
+    def select_customer(self, event):
+        """Select customer from search results"""
+        selection = self.customer_listbox.curselection()
+        if selection and hasattr(self, 'customer_search_results'):
+            customer = self.customer_search_results[selection[0]]
+            self.selected_customer_id = customer['customer_id']
+            self.customer_var.set(customer['customer_name'])
+            
+            # Update display
+            display_text = f"✓ {customer['customer_name']}"
+            if customer['phone_number']:
+                display_text += f" - {customer['phone_number']}"
+            self.selected_customer_label.config(text=display_text, foreground="green")
+            
+            self.hide_customer_results()
+    
+    def create_new_customer(self):
+        """Open dialog to create new customer"""
+        dialog = CreateCustomerDialog(self.window)
+        if dialog.result:
+            # Customer created, select it
+            customer = dialog.result
+            self.selected_customer_id = customer['customer_id']
+            self.customer_var.set(customer['customer_name'])
+            
+            # Update display
+            display_text = f"✓ {customer['customer_name']}"
+            if customer['phone_number']:
+                display_text += f" - {customer['phone_number']}"
+            self.selected_customer_label.config(text=display_text, foreground="green")
+    
     def on_discount_change(self, event):
         """Handle bill discount change"""
         self.update_totals()
@@ -671,3 +798,120 @@ class EditBillItemDialog:
         
         self.result = updated_item
         self.dialog.destroy()
+
+
+class CreateCustomerDialog:
+    """Dialog for creating new customer"""
+    
+    def __init__(self, parent):
+        self.result = None
+        
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Create New Customer")
+        self.dialog.geometry("400x250")
+        try:
+            self.dialog.transient(parent)
+            self.dialog.grab_set()
+        except tk.TclError:
+            pass
+        
+        # Center dialog
+        self.dialog.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() // 2) - (self.dialog.winfo_width() // 2)
+        y = parent.winfo_y() + (parent.winfo_height() // 2) - (self.dialog.winfo_height() // 2)
+        self.dialog.geometry(f"+{x}+{y}")
+        
+        self.create_widgets()
+        
+        # Wait for dialog to close
+        self.dialog.wait_window()
+    
+    def create_widgets(self):
+        """Create dialog widgets"""
+        main_frame = ttk.Frame(self.dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(main_frame, text="👤 Create New Customer", 
+                 font=("Segoe UI", 14, "bold")).pack(pady=(0, 20))
+        
+        # Form fields
+        fields_frame = ttk.Frame(main_frame)
+        fields_frame.pack(fill=tk.X, pady=(0, 20))
+        fields_frame.columnconfigure(1, weight=1)
+        
+        ttk.Label(fields_frame, text="Customer Name:*").grid(row=0, column=0, sticky=tk.W, pady=8)
+        self.name_entry = ttk.Entry(fields_frame, width=25, font=("Segoe UI", 11))
+        self.name_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=8, padx=(10, 0))
+        self.name_entry.focus()
+        
+        ttk.Label(fields_frame, text="Phone Number:").grid(row=1, column=0, sticky=tk.W, pady=8)
+        self.phone_entry = ttk.Entry(fields_frame, width=25, font=("Segoe UI", 11))
+        self.phone_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=8, padx=(10, 0))
+        
+        # Required field note
+        ttk.Label(main_frame, text="* Required field", 
+                 font=("Segoe UI", 9), foreground="gray").pack(anchor=tk.W)
+        
+        # Buttons
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.pack(fill=tk.X, pady=(20, 0))
+        
+        ttk.Button(buttons_frame, text="✓ Create", command=self.create_customer,
+                  style="Accent.TButton").pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(buttons_frame, text="✗ Cancel", command=self.dialog.destroy).pack(side=tk.RIGHT)
+        
+        # Bind Enter key
+        self.dialog.bind('<Return>', lambda e: self.create_customer())
+        self.dialog.bind('<Escape>', lambda e: self.dialog.destroy())
+    
+    def create_customer(self):
+        """Create the customer"""
+        customer_name = self.name_entry.get().strip()
+        if not customer_name:
+            messagebox.showerror("Error", "Customer name is required")
+            self.name_entry.focus()
+            return
+        
+        phone_number = self.phone_entry.get().strip()
+        if phone_number and not phone_number.replace('+', '').replace('-', '').replace(' ', '').isdigit():
+            messagebox.showerror("Error", "Please enter a valid phone number")
+            self.phone_entry.focus()
+            return
+        
+        try:
+            from ..database.connection import db
+            
+            # Check if customer already exists
+            existing = db.execute_query(
+                "SELECT customer_id FROM customers WHERE customer_name = ? OR phone_number = ?",
+                (customer_name, phone_number or None)
+            )
+            
+            if existing:
+                messagebox.showerror("Error", "Customer with this name or phone number already exists")
+                return
+            
+            # Insert new customer
+            query = '''
+            INSERT INTO customers (customer_name, phone_number)
+            VALUES (?, ?)
+            '''
+            
+            cursor = db.execute_update(query, (customer_name, phone_number or None))
+            if cursor and cursor.rowcount > 0:
+                customer_id = cursor.lastrowid
+                
+                # Create result
+                self.result = {
+                    'customer_id': customer_id,
+                    'customer_name': customer_name,
+                    'phone_number': phone_number
+                }
+                
+                messagebox.showinfo("Success", f"Customer '{customer_name}' created successfully!")
+                self.dialog.destroy()
+            else:
+                messagebox.showerror("Error", "Failed to create customer")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create customer: {e}")
