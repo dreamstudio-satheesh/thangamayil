@@ -15,7 +15,18 @@ class MainWindow:
         self.root = tk.Tk()
         self.root.title("தங்கமயில் சில்க்ஸ் - Billing Software")
         self.root.geometry("800x600")
-        self.root.state('zoomed')  # Maximize window on Windows/Linux
+        
+        # Try to maximize window (cross-platform)
+        try:
+            self.root.state('zoomed')  # Windows/Linux
+        except tk.TclError:
+            try:
+                self.root.wm_state('zoomed')  # Alternative method
+            except tk.TclError:
+                # Fallback: set to large size
+                screen_width = self.root.winfo_screenwidth()
+                screen_height = self.root.winfo_screenheight()
+                self.root.geometry(f"{min(1200, screen_width-100)}x{min(800, screen_height-100)}")
         
         # Configure styles
         self.setup_styles()

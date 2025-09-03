@@ -21,8 +21,11 @@ class ReportsWindow:
         self.window = tk.Toplevel()
         self.window.title("Reports - தங்கமயில் சில்க்ஸ்")
         self.window.geometry("1000x700")
-        self.window.transient()
-        self.window.grab_set()
+        try:
+            self.window.transient()
+            self.window.grab_set()
+        except tk.TclError:
+            pass  # Skip if parent window is not available
         
         self.create_widgets()
         

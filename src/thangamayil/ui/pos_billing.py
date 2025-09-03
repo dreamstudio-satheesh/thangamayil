@@ -35,8 +35,11 @@ class POSBillingWindow:
         self.window = tk.Toplevel()
         self.window.title("POS Billing - தங்கமயில் சில்க்ஸ்")
         self.window.geometry("1200x800")
-        self.window.transient()
-        self.window.grab_set()
+        try:
+            self.window.transient()
+            self.window.grab_set()
+        except tk.TclError:
+            pass  # Skip if parent window is not available
         
         self.create_widgets()
         self.start_new_bill()
@@ -589,8 +592,11 @@ class EditBillItemDialog:
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(f"Edit Item - {bill_item['item_name']}")
         self.dialog.geometry("400x200")
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
+        try:
+            self.dialog.transient(parent)
+            self.dialog.grab_set()
+        except tk.TclError:
+            pass
         
         # Center dialog
         self.dialog.update_idletasks()

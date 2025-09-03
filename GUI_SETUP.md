@@ -18,7 +18,14 @@ This script will:
 After setup, run the GUI with:
 
 ```bash
-python run_gui.py
+python run_simple.py
+```
+
+Or try these alternatives:
+```bash
+python run_gui_safe.py   # Safe launcher with better error handling
+python main.py          # Original launcher with splash screen
+python test_gui_simple.py  # Simple test first
 ```
 
 ## Manual Setup

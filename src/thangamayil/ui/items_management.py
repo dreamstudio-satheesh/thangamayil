@@ -22,8 +22,11 @@ class ItemsManagementWindow:
         self.window = tk.Toplevel()
         self.window.title("Items Management - தங்கமயில் சில்க்ஸ்")
         self.window.geometry("1000x700")
-        self.window.transient()
-        self.window.grab_set()
+        try:
+            self.window.transient()
+            self.window.grab_set()
+        except tk.TclError:
+            pass  # Skip if parent window is not available
         
         self.create_widgets()
         self.load_data()
@@ -326,8 +329,11 @@ class ItemEditDialog:
         title = "Edit Item" if item else "Add New Item"
         self.dialog.title(title)
         self.dialog.geometry("500x400")
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
+        try:
+            self.dialog.transient(parent)
+            self.dialog.grab_set()
+        except tk.TclError:
+            pass
         
         # Center dialog
         self.dialog.update_idletasks()
@@ -536,8 +542,11 @@ class StockUpdateDialog:
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(f"Update Stock - {item_name}")
         self.dialog.geometry("400x250")
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
+        try:
+            self.dialog.transient(parent)
+            self.dialog.grab_set()
+        except tk.TclError:
+            pass
         
         # Center dialog
         self.dialog.update_idletasks()
@@ -611,8 +620,11 @@ class CategoriesDialog:
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Manage Categories")
         self.dialog.geometry("400x300")
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
+        try:
+            self.dialog.transient(parent)
+            self.dialog.grab_set()
+        except tk.TclError:
+            pass
         
         # Center dialog
         self.dialog.update_idletasks()

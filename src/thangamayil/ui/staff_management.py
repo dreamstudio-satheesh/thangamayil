@@ -21,8 +21,11 @@ class StaffManagementWindow:
         self.window = tk.Toplevel()
         self.window.title("Staff Management - தங்கமயில் சில்க்ஸ்")
         self.window.geometry("800x600")
-        self.window.transient()
-        self.window.grab_set()
+        try:
+            self.window.transient()
+            self.window.grab_set()
+        except tk.TclError:
+            pass  # Skip if parent window is not available
         
         self.create_widgets()
         self.load_staff_data()
@@ -144,10 +147,10 @@ class StaffManagementWindow:
         
         self.status_var.set("Active" if staff['is_active'] else "Inactive")
         
-        created_date = staff.get('created_at', 'N/A')
-        if created_date and len(created_date) > 10:
-            created_date = created_date[:10]  # Show only date part
-        self.created_label.config(text=created_date)
+        created_date = staff['created_at'] if 'created_at' in staff.keys() else 'N/A'
+        if created_date and len(str(created_date)) > 10:
+            created_date = str(created_date)[:10]  # Show only date part
+        self.created_label.config(text=str(created_date))
     
     def clear_form(self):
         """Clear the form fields"""
@@ -220,8 +223,11 @@ class AddStaffDialog:
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Add New Staff")
         self.dialog.geometry("400x250")
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
+        try:
+            self.dialog.transient(parent)
+            self.dialog.grab_set()
+        except tk.TclError:
+            pass
         
         # Center dialog
         self.dialog.update_idletasks()
@@ -324,8 +330,11 @@ class ChangePasswordDialog:
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(f"Change Password - {staff_name}")
         self.dialog.geometry("400x200")
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
+        try:
+            self.dialog.transient(parent)
+            self.dialog.grab_set()
+        except tk.TclError:
+            pass
         
         # Center dialog
         self.dialog.update_idletasks()
