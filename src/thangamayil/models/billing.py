@@ -5,7 +5,6 @@ Handles bill creation, GST calculations, and transaction operations
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-import uuid
 from ..database.connection import db
 from .items import ItemsManager
 

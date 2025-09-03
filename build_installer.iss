@@ -31,13 +31,10 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 [Files]
 Source: "dist\ThangamayilBilling.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\db.sql"; DestDir: "{app}"; Flags: ignoreversion
-Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "CLAUDE.md"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{group}\தங்கமயில் சில்க்ஸ் Billing"; Filename: "{app}\ThangamayilBilling.exe"
-Name: "{group}\{cm:ProgramOnTheWeb,தங்கமயில் சில்க்ஸ்}"; Filename: "https://github.com/your-repo"
 Name: "{group}\{cm:UninstallProgram,தங்கமயில் சில்க்ஸ்}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\தங்கமயில் சில்க்ஸ் Billing"; Filename: "{app}\ThangamayilBilling.exe"; Tasks: desktopicon
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\தங்கமயில் சில்க்ஸ் Billing"; Filename: "{app}\ThangamayilBilling.exe"; Tasks: quicklaunchicon

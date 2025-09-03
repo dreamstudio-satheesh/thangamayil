@@ -75,3 +75,4 @@
 ---
 
 **Prepared for: தங்கமயில் சில்க்ஸ்**
+Licensed to: Satheesh (Dream Studio)
