@@ -16,11 +16,17 @@ class BillManagementWindow:
         self.window = None
         self.bills_data = []
         
-    def show(self):
+    def show(self, parent=None):
         """Display the bill management window"""
-        self.window = tk.Toplevel()
+        if parent:
+            self.parent = parent
+        
+        self.window = tk.Toplevel(self.parent)
         self.window.title("Bill Management - தங்கமயில் சில்க்ஸ்")
         self.window.geometry("1000x600")
+        
+        # Set up proper window cleanup
+        self.window.protocol("WM_DELETE_WINDOW", self.close_window)
         
         if self.parent:
             try:
@@ -41,7 +47,17 @@ class BillManagementWindow:
         # Bind keyboard shortcuts
         self.window.bind('<F5>', lambda e: self.load_bills())
         self.window.bind('<Delete>', lambda e: self.delete_selected_bill())
-        self.window.bind('<Escape>', lambda e: self.window.destroy())
+        self.window.bind('<Escape>', lambda e: self.close_window())
+    
+    def close_window(self):
+        """Properly close the bill management window"""
+        if self.window:
+            try:
+                self.window.grab_release()
+            except tk.TclError:
+                pass
+            self.window.destroy()
+            self.window = None
     
     def create_widgets(self):
         """Create the UI widgets"""
@@ -132,6 +148,8 @@ class BillManagementWindow:
                   width=12).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(buttons_frame, text="🖨️ Print", command=self.print_selected_bill, 
                   width=12).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(buttons_frame, text="👁️ Preview", command=self.preview_selected_bill, 
+                  width=12).pack(side=tk.LEFT, padx=(0, 5))
         ttk.Button(buttons_frame, text="❌ Delete", command=self.delete_selected_bill, 
                   width=12).pack(side=tk.LEFT, padx=(0, 5))
         
@@ -154,7 +172,9 @@ class BillManagementWindow:
             query = '''
             SELECT 
                 b.bill_id, b.invoice_number, b.bill_date, b.grand_total, 
-                b.payment_mode, b.is_cancelled,
+                b.payment_mode, b.is_cancelled, b.customer_id,
+                b.subtotal, b.discount_amount, b.cgst_amount, b.sgst_amount, 
+                b.igst_amount, b.round_off,
                 c.customer_name,
                 COUNT(bi.bill_item_id) as item_count
             FROM bills b
@@ -281,11 +301,29 @@ class BillManagementWindow:
             if not messagebox.askyesno("Cancelled Bill", "This bill is cancelled. Print anyway?"):
                 return
         
+        # Check if bill has items before printing
+        if bill.get('item_count', 0) == 0:
+            response = messagebox.askyesnocancel("Empty Bill", 
+                f"Bill {bill['invoice_number']} has no items.\n\n" +
+                "• Click 'Yes' to delete this empty bill\n" +
+                "• Click 'No' to keep the bill\n" +
+                "• Click 'Cancel' to return without action")
+            
+            if response is True:  # Yes - delete the bill
+                try:
+                    from ..database.connection import db
+                    db.execute_query("DELETE FROM bills WHERE bill_id = ?", (bill['bill_id'],))
+                    messagebox.showinfo("Bill Deleted", f"Empty bill {bill['invoice_number']} has been deleted.")
+                    self.load_bills()  # Refresh the list
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to delete bill: {e}")
+            return
+        
         # Print using thermal printer
         try:
             from .thermal_printer import ThermalPrinter
             printer = ThermalPrinter()
-            printer.print_bill(bill)
+            printer.print_bill(bill, parent_window=self.window)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print bill: {e}")
     

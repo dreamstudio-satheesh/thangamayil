@@ -273,7 +273,7 @@ pyinstaller --onefile --windowed main.py --name="ThangamayilBilling"
 ### Thermal Printer
 - Update printer settings in database settings table
 - Use system's default printer or configure specific thermal printer
-- Invoice format optimized for 80mm thermal paper
+- Invoice format optimized for 4 inch thermal paper
 
 ## Deployment
 

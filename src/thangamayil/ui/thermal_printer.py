@@ -15,7 +15,7 @@ class ThermalPrinter:
     """Handles thermal printer operations"""
     
     def __init__(self):
-        self.line_width = 48  # 80mm thermal paper width in characters
+        self.line_width = 64  # 4 inch (101.6mm) thermal paper width in characters
     
     def print_bill(self, bill_data, parent_window=None):
         """Print bill to thermal printer"""
@@ -33,7 +33,7 @@ class ThermalPrinter:
             messagebox.showerror("Error", f"Failed to print bill: {e}")
     
     def generate_thermal_bill(self, bill_data):
-        """Generate thermal printer bill format (80mm width)"""
+        """Generate thermal printer bill format (4 inch width)"""
         try:
             from ..database.connection import db
             
@@ -47,7 +47,7 @@ class ThermalPrinter:
             
             # Check if bill items exist
             if not bill_items:
-                raise Exception(f"No items found for bill ID {bill_data['bill_id']}")
+                raise Exception(f"Cannot print bill {bill_data.get('invoice_number', bill_data['bill_id'])}: No items found. This bill appears to be empty.")
             
             # Get customer info
             customer_query = '''
@@ -76,7 +76,8 @@ class ThermalPrinter:
             bill_lines.append(f"Ph: {shop_phone}".center(self.line_width))
             bill_lines.append(f"GSTIN: {gstin}".center(self.line_width))
             bill_lines.append("=" * self.line_width)
-            bill_lines.append("TAX INVOICE".center(self.line_width))
+            bill_lines.append("*** TAX INVOICE ***".center(self.line_width))
+            bill_lines.append("(GST Compliant Bill)".center(self.line_width))
             bill_lines.append("=" * self.line_width)
             
             # Bill details
@@ -169,8 +170,12 @@ class ThermalPrinter:
                 bill_lines.append(f"Bill Disc:{('-' + str(int(bill_discount_amount))).rjust(self.line_width - 10)}")
             
             if cgst_amount > 0:
-                bill_lines.append(f"CGST:{str(int(cgst_amount)).rjust(self.line_width - 5)}")
-                bill_lines.append(f"SGST:{str(int(sgst_amount)).rjust(self.line_width - 5)}")
+                # Calculate average GST rate for display (assuming CGST = SGST)
+                taxable_amount = subtotal - total_discount - bill_discount_amount
+                total_gst_rate = (cgst_amount + sgst_amount) / (taxable_amount / 100) if taxable_amount > 0 else 0
+                cgst_rate = total_gst_rate / 2
+                bill_lines.append(f"CGST@{cgst_rate:.1f}%:{str(int(cgst_amount)).rjust(self.line_width - 12)}")
+                bill_lines.append(f"SGST@{cgst_rate:.1f}%:{str(int(sgst_amount)).rjust(self.line_width - 12)}")
             
             if igst_amount > 0:
                 bill_lines.append(f"IGST:{str(int(igst_amount)).rjust(self.line_width - 5)}")
@@ -187,10 +192,14 @@ class ThermalPrinter:
             bill_lines.append(f"Payment: {bill_data['payment_mode']}")
             bill_lines.append("")
             
-            # Footer
-            bill_lines.append("Thank you for shopping with us!".center(self.line_width))
+            # Footer - GST Compliance
+            bill_lines.append("")
+            bill_lines.append("*** TERMS & CONDITIONS ***".center(self.line_width))
+            bill_lines.append("This is a Computer Generated Invoice".center(self.line_width))
+            bill_lines.append("Subject to Local Jurisdiction".center(self.line_width))
             bill_lines.append("No Exchange | No Refund".center(self.line_width))
             bill_lines.append("")
+            bill_lines.append("Thank you for shopping with us!".center(self.line_width))
             bill_lines.append("-" * self.line_width)
             bill_lines.append("")
             bill_lines.append("")  # Extra lines for paper cutting
@@ -321,7 +330,8 @@ class ThermalPrinter:
             bill_lines.append(f"Ph: {shop_phone}".center(self.line_width))
             bill_lines.append(f"GSTIN: {gstin}".center(self.line_width))
             bill_lines.append("=" * self.line_width)
-            bill_lines.append("TAX INVOICE (PREVIEW)".center(self.line_width))
+            bill_lines.append("*** TAX INVOICE (PREVIEW) ***".center(self.line_width))
+            bill_lines.append("(GST Compliant Bill)".center(self.line_width))
             bill_lines.append("=" * self.line_width)
             
             # Bill details
@@ -390,6 +400,27 @@ class ThermalPrinter:
             
             if total_discount > 0:
                 bill_lines.append(f"Item Disc:{('-' + str(int(total_discount))).rjust(self.line_width - 10)}")
+            
+            # Add GST breakdown to preview
+            bill_discount_amount = temp_bill_data.get('discount_amount', 0)
+            cgst_amount = temp_bill_data.get('cgst_amount', 0) 
+            sgst_amount = temp_bill_data.get('sgst_amount', 0)
+            round_off = temp_bill_data.get('round_off', 0)
+            
+            if bill_discount_amount > 0:
+                bill_lines.append(f"Bill Disc:{('-' + str(int(bill_discount_amount))).rjust(self.line_width - 10)}")
+            
+            if cgst_amount > 0:
+                # Calculate average GST rate for display (assuming CGST = SGST)
+                taxable_amount = subtotal - total_discount - bill_discount_amount
+                total_gst_rate = (cgst_amount + sgst_amount) / (taxable_amount / 100) if taxable_amount > 0 else 0
+                cgst_rate = total_gst_rate / 2
+                bill_lines.append(f"CGST@{cgst_rate:.1f}%:{str(int(cgst_amount)).rjust(self.line_width - 12)}")
+                bill_lines.append(f"SGST@{cgst_rate:.1f}%:{str(int(sgst_amount)).rjust(self.line_width - 12)}")
+            
+            if round_off != 0:
+                sign = "+" if round_off > 0 else ""
+                bill_lines.append(f"Round Off:{(sign + str(round_off)).rjust(self.line_width - 10)}")
             
             bill_lines.append("=" * self.line_width)
             bill_lines.append(f"TOTAL:{str(int(temp_bill_data['grand_total'])).rjust(self.line_width - 6)}")

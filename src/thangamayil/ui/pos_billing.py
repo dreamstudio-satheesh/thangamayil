@@ -861,6 +861,40 @@ class POSBillingWindow:
             from .thermal_printer import ThermalPrinter
             from ..database.connection import db
             
+            # Calculate GST amounts for preview
+            total_cgst = 0
+            total_sgst = 0
+            subtotal = 0
+            
+            try:
+                if not self.bill_items:
+                    print("No bill items for preview")
+                else:
+                    for item in self.bill_items:
+                        try:
+                            # Safe access to item properties with defaults (handle both 'price' and 'unit_price')
+                            quantity = float(item.get('quantity', 0))
+                            price = float(item.get('unit_price', item.get('price', 0)))
+                            discount_percentage = float(item.get('discount_percentage', 0))
+                            gst_percentage = float(item.get('gst_percentage', 0))
+                            
+                            item_subtotal = quantity * price
+                            item_discount = (item_subtotal * discount_percentage) / 100
+                            taxable_amount = item_subtotal - item_discount
+                            item_gst_amount = (taxable_amount * gst_percentage) / 100
+                            
+                            subtotal += taxable_amount
+                            total_cgst += item_gst_amount / 2  # CGST is half of total GST
+                            total_sgst += item_gst_amount / 2  # SGST is half of total GST
+                        except (TypeError, ValueError, KeyError) as item_error:
+                            print(f"Error processing item {item}: {item_error}")
+                            continue
+            except Exception as e:
+                print(f"Error calculating GST for preview: {e}")
+                # Fallback to zero values if calculation fails
+                total_cgst = 0
+                total_sgst = 0
+            
             # Create a temporary bill data structure for preview
             temp_bill_data = {
                 'bill_id': 'PREVIEW',
@@ -868,8 +902,8 @@ class POSBillingWindow:
                 'bill_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'customer_id': getattr(self, 'customer_id', 1),
                 'discount_amount': 0,
-                'cgst_amount': 0,
-                'sgst_amount': 0,
+                'cgst_amount': total_cgst,
+                'sgst_amount': total_sgst,
                 'igst_amount': 0,
                 'round_off': 0,
                 'grand_total': self.calculate_preview_total(),
@@ -888,6 +922,8 @@ class POSBillingWindow:
                 messagebox.showerror("Error", "Failed to generate bill preview")
                 
         except Exception as e:
+            print(f"Preview error details: {e}")
+            print(f"Bill items: {self.bill_items}")
             messagebox.showerror("Error", f"Failed to preview bill: {e}")
     
     def calculate_preview_total(self):
@@ -1428,7 +1464,7 @@ class BillDetailsWindow:
             messagebox.showerror("Error", f"Failed to print bill: {e}")
     
     def generate_thermal_bill(self):
-        """Generate thermal printer bill format (80mm width)"""
+        """Generate thermal printer bill format (4 inch width)"""
         try:
             from ..database.connection import db
             from datetime import datetime
@@ -1458,9 +1494,9 @@ class BillDetailsWindow:
             shop_phone = db.get_setting('shop_phone') or '+91-9876543210'
             gstin = db.get_setting('gstin') or '33AAACT9454F1ZB'
             
-            # Build thermal printer content (48 characters width for 80mm)
+            # Build thermal printer content (64 characters width for 4 inch)
             bill_lines = []
-            line_width = 48
+            line_width = 64
             
             # Header
             bill_lines.append("=" * line_width)
@@ -1469,7 +1505,8 @@ class BillDetailsWindow:
             bill_lines.append(f"Ph: {shop_phone}".center(line_width))
             bill_lines.append(f"GSTIN: {gstin}".center(line_width))
             bill_lines.append("=" * line_width)
-            bill_lines.append("TAX INVOICE".center(line_width))
+            bill_lines.append("*** TAX INVOICE ***".center(line_width))
+            bill_lines.append("(GST Compliant Bill)".center(line_width))
             bill_lines.append("=" * line_width)
             
             # Bill details
@@ -1555,8 +1592,12 @@ class BillDetailsWindow:
                 bill_lines.append(f"Bill Disc:{('-' + str(int(bill_discount_amount))).rjust(line_width - 10)}")
             
             if cgst_amount > 0:
-                bill_lines.append(f"CGST:{str(int(cgst_amount)).rjust(line_width - 5)}")
-                bill_lines.append(f"SGST:{str(int(sgst_amount)).rjust(line_width - 5)}")
+                # Calculate average GST rate for display (assuming CGST = SGST)
+                taxable_amount = subtotal - total_discount - bill_discount_amount
+                total_gst_rate = (cgst_amount + sgst_amount) / (taxable_amount / 100) if taxable_amount > 0 else 0
+                cgst_rate = total_gst_rate / 2
+                bill_lines.append(f"CGST@{cgst_rate:.1f}%:{str(int(cgst_amount)).rjust(line_width - 12)}")
+                bill_lines.append(f"SGST@{cgst_rate:.1f}%:{str(int(sgst_amount)).rjust(line_width - 12)}")
             
             if igst_amount > 0:
                 bill_lines.append(f"IGST:{str(int(igst_amount)).rjust(line_width - 5)}")
@@ -1573,10 +1614,14 @@ class BillDetailsWindow:
             bill_lines.append(f"Payment: {self.bill_data['payment_mode']}")
             bill_lines.append("")
             
-            # Footer
-            bill_lines.append("Thank you for shopping with us!".center(line_width))
+            # Footer - GST Compliance
+            bill_lines.append("")
+            bill_lines.append("*** TERMS & CONDITIONS ***".center(line_width))
+            bill_lines.append("This is a Computer Generated Invoice".center(line_width))
+            bill_lines.append("Subject to Local Jurisdiction".center(line_width))
             bill_lines.append("No Exchange | No Refund".center(line_width))
             bill_lines.append("")
+            bill_lines.append("Thank you for shopping with us!".center(line_width))
             bill_lines.append("-" * line_width)
             bill_lines.append("")
             bill_lines.append("")  # Extra lines for paper cutting
