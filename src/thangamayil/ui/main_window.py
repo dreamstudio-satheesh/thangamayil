@@ -159,10 +159,19 @@ class MainWindow:
         )
         items_btn.pack(fill=tk.X, pady=15)
         
+        # Bill Management button
+        bills_btn = ttk.Button(
+            left_panel,
+            text="📋 Bill Management (F3, Ctrl+M)",
+            style="MainMenu.TButton",
+            command=self.open_bill_management
+        )
+        bills_btn.pack(fill=tk.X, pady=15)
+        
         # Reports button
         reports_btn = ttk.Button(
             left_panel,
-            text="📊 Reports (F3, Ctrl+R)",
+            text="📊 Reports (F4, Ctrl+R)",
             style="MainMenu.TButton",
             command=self.open_reports
         )
@@ -217,6 +226,7 @@ class MainWindow:
         # Primary operations shortcuts
         self.root.bind('<Control-n>', lambda e: self.open_pos_billing())  # Ctrl+N for New Bill
         self.root.bind('<Control-i>', lambda e: self.open_items_management())  # Ctrl+I for Items
+        self.root.bind('<Control-m>', lambda e: self.open_bill_management())  # Ctrl+M for Bill Management
         self.root.bind('<Control-r>', lambda e: self.open_reports())  # Ctrl+R for Reports
         self.root.bind('<Control-u>', lambda e: self.open_staff_management())  # Ctrl+U for Users/Staff
         self.root.bind('<Control-s>', lambda e: self.open_settings())  # Ctrl+S for Settings
@@ -225,7 +235,8 @@ class MainWindow:
         # Function keys
         self.root.bind('<F1>', lambda e: self.open_pos_billing())  # F1 for POS
         self.root.bind('<F2>', lambda e: self.open_items_management())  # F2 for Items
-        self.root.bind('<F3>', lambda e: self.open_reports())  # F3 for Reports
+        self.root.bind('<F3>', lambda e: self.open_bill_management())  # F3 for Bill Management
+        self.root.bind('<F4>', lambda e: self.open_reports())  # F4 for Reports
         
         # Logout shortcuts
         self.root.bind('<Control-q>', lambda e: self.logout())  # Ctrl+Q for Quit/Logout
@@ -254,6 +265,15 @@ class MainWindow:
             items_window.show()
         except Exception as e:
             messagebox.showerror("Error", f"Could not open items management: {str(e)}")
+    
+    def open_bill_management(self):
+        """Open bill management window"""
+        try:
+            from .bill_management import BillManagementWindow
+            bills_window = BillManagementWindow()
+            bills_window.show()
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open bill management: {str(e)}")
     
     def open_staff_management(self):
         """Open staff management window"""

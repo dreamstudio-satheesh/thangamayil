@@ -1,0 +1,290 @@
+"""
+Thermal Printer Module
+Handles thermal printer bill generation and printing based on billprint.md format
+"""
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+from datetime import datetime
+import tempfile
+import os
+import platform
+
+
+class ThermalPrinter:
+    """Handles thermal printer operations"""
+    
+    def __init__(self):
+        self.line_width = 48  # 80mm thermal paper width in characters
+    
+    def print_bill(self, bill_data, parent_window=None):
+        """Print bill to thermal printer"""
+        try:
+            # Generate thermal printer content
+            bill_content = self.generate_thermal_bill(bill_data)
+            if bill_content:
+                # Send to thermal printer
+                self.send_to_thermal_printer(bill_content, parent_window)
+                messagebox.showinfo("Print", f"Bill {bill_data['invoice_number']} sent to thermal printer successfully!")
+            else:
+                messagebox.showerror("Error", "Failed to generate bill content")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to print bill: {e}")
+    
+    def generate_thermal_bill(self, bill_data):
+        """Generate thermal printer bill format (80mm width)"""
+        try:
+            from ..database.connection import db
+            
+            # Get bill items from database
+            items_query = '''
+            SELECT * FROM bill_items 
+            WHERE bill_id = ? 
+            ORDER BY bill_item_id
+            '''
+            bill_items = db.execute_query(items_query, (bill_data['bill_id'],))
+            
+            # Get customer info
+            customer_query = '''
+            SELECT c.customer_name, c.phone_number, c.address 
+            FROM customers c 
+            JOIN bills b ON c.customer_id = b.customer_id 
+            WHERE b.bill_id = ?
+            '''
+            customer_result = db.execute_query(customer_query, (bill_data['bill_id'],))
+            customer_name = customer_result[0]['customer_name'] if customer_result else "Walk-in Customer"
+            customer_phone = customer_result[0]['phone_number'] if customer_result else ""
+            
+            # Get shop settings
+            shop_name = db.get_setting('shop_name') or 'தங்கமயில் சில்க்ஸ்'
+            shop_address = db.get_setting('shop_address') or 'No.1 Main Road, Tamil Nadu, IN'
+            shop_phone = db.get_setting('shop_phone') or '+91-9876543210'
+            gstin = db.get_setting('gstin') or '33AAACT9454F1ZB'
+            
+            # Build thermal printer content
+            bill_lines = []
+            
+            # Header
+            bill_lines.append("=" * self.line_width)
+            bill_lines.append(shop_name.center(self.line_width))
+            bill_lines.append(shop_address.center(self.line_width))
+            bill_lines.append(f"Ph: {shop_phone}".center(self.line_width))
+            bill_lines.append(f"GSTIN: {gstin}".center(self.line_width))
+            bill_lines.append("=" * self.line_width)
+            bill_lines.append("TAX INVOICE".center(self.line_width))
+            bill_lines.append("=" * self.line_width)
+            
+            # Bill details
+            bill_date = datetime.strptime(bill_data['bill_date'], '%Y-%m-%d %H:%M:%S')
+            bill_lines.append(f"Invoice: {bill_data['invoice_number']}")
+            bill_lines.append(f"Date: {bill_date.strftime('%d-%m-%Y %H:%M')}")
+            
+            if customer_name != "Walk-in Customer":
+                bill_lines.append(f"Customer: {customer_name}")
+                if customer_phone:
+                    bill_lines.append(f"Phone: {customer_phone}")
+            
+            bill_lines.append("-" * self.line_width)
+            
+            # Items header
+            bill_lines.append("Item                    Qty  Rate   Total")
+            bill_lines.append("-" * self.line_width)
+            
+            # Items
+            subtotal = 0
+            total_discount = 0
+            total_gst = 0
+            
+            for item in bill_items:
+                # Calculate amounts - handle Row objects safely
+                unit_price = float(item['unit_price'] if item['unit_price'] is not None else 0)
+                quantity = int(item['quantity'] if item['quantity'] is not None else 1)
+                discount_percentage = float(item['discount_percentage'] if item['discount_percentage'] is not None else 0)
+                gst_percentage = float(item['gst_percentage'] if item['gst_percentage'] is not None else 0)
+                
+                line_subtotal = unit_price * quantity
+                discount_amount = (line_subtotal * discount_percentage) / 100
+                taxable_amount = line_subtotal - discount_amount
+                gst_amount = (taxable_amount * gst_percentage) / 100
+                line_total = taxable_amount + gst_amount
+                
+                subtotal += line_subtotal
+                total_discount += discount_amount
+                total_gst += gst_amount
+                
+                # Format item name (truncate if too long)
+                item_name = str(item['item_name'] if item['item_name'] is not None else 'Unknown Item')
+                if len(item_name) > 20:
+                    item_name = item_name[:17] + "..."
+                
+                # Format line: "Item name           Qty  Rate   Total"
+                qty_str = str(quantity)
+                rate_str = f"{unit_price:.0f}"
+                total_str = f"{line_total:.0f}"
+                
+                # Build line with proper spacing
+                spaces_after_name = max(1, 20 - len(item_name))
+                spaces_after_qty = max(1, 4 - len(qty_str))
+                spaces_after_rate = max(1, 7 - len(rate_str))
+                
+                line = f"{item_name}{' ' * spaces_after_name}{qty_str}{' ' * spaces_after_qty}{rate_str}{' ' * spaces_after_rate}{total_str}"
+                bill_lines.append(line)
+                
+                # Add discount info if applicable
+                if discount_percentage > 0:
+                    bill_lines.append(f"  Disc: {discount_percentage:.1f}% = -{discount_amount:.0f}")
+                
+                # Add GST info
+                if gst_percentage > 0:
+                    bill_lines.append(f"  GST: {gst_percentage:.1f}% = +{gst_amount:.0f}")
+            
+            bill_lines.append("-" * self.line_width)
+            
+            # Summary
+            bill_discount_amount = bill_data['discount_amount'] if bill_data['discount_amount'] is not None else 0
+            cgst_amount = bill_data['cgst_amount'] if bill_data['cgst_amount'] is not None else 0
+            sgst_amount = bill_data['sgst_amount'] if bill_data['sgst_amount'] is not None else 0
+            igst_amount = bill_data['igst_amount'] if bill_data['igst_amount'] is not None else 0
+            round_off = bill_data['round_off'] if bill_data['round_off'] is not None else 0
+            
+            # Right-align summary values
+            bill_lines.append(f"Subtotal:{str(int(subtotal)).rjust(self.line_width - 9)}")
+            
+            if total_discount > 0:
+                bill_lines.append(f"Item Disc:{('-' + str(int(total_discount))).rjust(self.line_width - 10)}")
+            
+            if bill_discount_amount > 0:
+                bill_lines.append(f"Bill Disc:{('-' + str(int(bill_discount_amount))).rjust(self.line_width - 10)}")
+            
+            if cgst_amount > 0:
+                bill_lines.append(f"CGST:{str(int(cgst_amount)).rjust(self.line_width - 5)}")
+                bill_lines.append(f"SGST:{str(int(sgst_amount)).rjust(self.line_width - 5)}")
+            
+            if igst_amount > 0:
+                bill_lines.append(f"IGST:{str(int(igst_amount)).rjust(self.line_width - 5)}")
+            
+            if round_off != 0:
+                sign = "+" if round_off > 0 else ""
+                bill_lines.append(f"Round Off:{(sign + str(round_off)).rjust(self.line_width - 10)}")
+            
+            bill_lines.append("=" * self.line_width)
+            bill_lines.append(f"TOTAL:{str(int(bill_data['grand_total'])).rjust(self.line_width - 6)}")
+            bill_lines.append("=" * self.line_width)
+            
+            # Payment info
+            bill_lines.append(f"Payment: {bill_data['payment_mode']}")
+            bill_lines.append("")
+            
+            # Footer
+            bill_lines.append("Thank you for shopping with us!".center(self.line_width))
+            bill_lines.append("No Exchange | No Refund".center(self.line_width))
+            bill_lines.append("")
+            bill_lines.append("-" * self.line_width)
+            bill_lines.append("")
+            bill_lines.append("")  # Extra lines for paper cutting
+            
+            return "\n".join(bill_lines)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate bill: {str(e)}")
+            return None
+    
+    def send_to_thermal_printer(self, content, parent_window=None):
+        """Send content to thermal printer"""
+        try:
+            # Create temporary file with bill content
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as temp_file:
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+            
+            try:
+                # Try to print to default printer
+                system = platform.system()
+                
+                if system == "Windows":
+                    # Windows: Print to default printer
+                    os.system(f'type "{temp_file_path}" > PRN')
+                    # Alternative: Use notepad /p for formatted printing
+                    # os.system(f'notepad /p "{temp_file_path}"')
+                    
+                elif system == "Linux":
+                    # Linux: Use lp command
+                    os.system(f'lp "{temp_file_path}"')
+                    
+                elif system == "Darwin":  # macOS
+                    # macOS: Use lp command
+                    os.system(f'lp "{temp_file_path}"')
+                
+                else:
+                    # Fallback: Show content in a dialog for manual printing
+                    self.show_print_preview(content, parent_window)
+                    
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
+                    
+        except Exception as e:
+            # Fallback: Show print preview
+            self.show_print_preview(content, parent_window)
+            messagebox.showinfo("Print Method", 
+                "Automatic printing failed. Please copy the text from the preview window and print manually.")
+    
+    def show_print_preview(self, content, parent_window=None):
+        """Show print preview window"""
+        preview_window = tk.Toplevel()
+        preview_window.title("Print Preview - Thermal Receipt")
+        preview_window.geometry("600x800")
+        
+        if parent_window:
+            try:
+                preview_window.transient(parent_window)
+                preview_window.grab_set()
+            except tk.TclError:
+                pass
+        
+        # Create text widget with monospace font
+        text_frame = ttk.Frame(preview_window)
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        text_widget = tk.Text(text_frame, font=("Courier New", 10), wrap=tk.NONE)
+        scrollbar_v = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+        scrollbar_h = ttk.Scrollbar(text_frame, orient="horizontal", command=text_widget.xview)
+        
+        text_widget.configure(yscrollcommand=scrollbar_v.set, xscrollcommand=scrollbar_h.set)
+        
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar_v.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_h.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Insert content
+        text_widget.insert(tk.END, content)
+        text_widget.config(state=tk.DISABLED)
+        
+        # Buttons
+        button_frame = ttk.Frame(preview_window)
+        button_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Button(button_frame, text="📄 Copy to Clipboard", 
+                  command=lambda: self.copy_to_clipboard(content)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="🖨️ Try Print Again", 
+                  command=lambda: self.send_to_thermal_printer(content, parent_window)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="❌ Close", 
+                  command=preview_window.destroy).pack(side=tk.RIGHT, padx=5)
+    
+    def copy_to_clipboard(self, content):
+        """Copy content to clipboard"""
+        try:
+            # Create a temporary root if needed
+            temp_root = tk.Tk()
+            temp_root.withdraw()
+            temp_root.clipboard_clear()
+            temp_root.clipboard_append(content)
+            temp_root.update()
+            temp_root.destroy()
+            messagebox.showinfo("Copied", "Bill content copied to clipboard!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to copy to clipboard: {e}")
