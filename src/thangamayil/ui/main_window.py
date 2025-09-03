@@ -159,6 +159,15 @@ class MainWindow:
         )
         items_btn.pack(fill=tk.X, pady=15)
         
+        # Barcode Printer button
+        barcode_btn = ttk.Button(
+            left_panel,
+            text="🏷️ Barcode Stickers (F5, Ctrl+B)",
+            style="MainMenu.TButton",
+            command=self.open_barcode_printer
+        )
+        barcode_btn.pack(fill=tk.X, pady=15)
+        
         # Bill Management button
         bills_btn = ttk.Button(
             left_panel,
@@ -203,7 +212,7 @@ class MainWindow:
         # Backup button
         backup_btn = ttk.Button(
             right_panel,
-            text="💾 Database Backup (Ctrl+B)",
+            text="💾 Database Backup (Ctrl+Shift+B)",
             style="MainMenu.TButton",
             command=self.create_backup
         )
@@ -230,13 +239,15 @@ class MainWindow:
         self.root.bind('<Control-r>', lambda e: self.open_reports())  # Ctrl+R for Reports
         self.root.bind('<Control-u>', lambda e: self.open_staff_management())  # Ctrl+U for Users/Staff
         self.root.bind('<Control-s>', lambda e: self.open_settings())  # Ctrl+S for Settings
-        self.root.bind('<Control-b>', lambda e: self.create_backup())  # Ctrl+B for Backup
+        self.root.bind('<Control-b>', lambda e: self.open_barcode_printer())  # Ctrl+B for Barcode Printer
+        self.root.bind('<Control-Shift-b>', lambda e: self.create_backup())  # Ctrl+Shift+B for Backup
         
         # Function keys
         self.root.bind('<F1>', lambda e: self.open_pos_billing())  # F1 for POS
         self.root.bind('<F2>', lambda e: self.open_items_management())  # F2 for Items
         self.root.bind('<F3>', lambda e: self.open_bill_management())  # F3 for Bill Management
         self.root.bind('<F4>', lambda e: self.open_reports())  # F4 for Reports
+        self.root.bind('<F5>', lambda e: self.open_barcode_printer())  # F5 for Barcode Printer
         
         # Logout shortcuts
         self.root.bind('<Control-q>', lambda e: self.logout())  # Ctrl+Q for Quit/Logout
@@ -265,6 +276,15 @@ class MainWindow:
             items_window.show(parent=self.root)
         except Exception as e:
             messagebox.showerror("Error", f"Could not open items management: {str(e)}")
+    
+    def open_barcode_printer(self):
+        """Open barcode sticker printer window"""
+        try:
+            from .barcode_printer import BarcodePrinterWindow
+            barcode_window = BarcodePrinterWindow()
+            barcode_window.show(parent=self.root)
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open barcode printer: {str(e)}")
     
     def open_bill_management(self):
         """Open bill management window"""
