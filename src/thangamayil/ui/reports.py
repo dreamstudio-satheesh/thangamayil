@@ -4,7 +4,8 @@ Interface for generating and viewing various business reports
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
+import csv
 from datetime import datetime, timedelta
 from ..models.billing import BillingManager
 
@@ -508,8 +509,66 @@ class ReportsWindow:
             messagebox.showwarning("No Data", "No report data to export")
             return
         
-        # TODO: Implement CSV export
-        messagebox.showinfo("Export", "CSV export functionality to be implemented")
+        try:
+            # Get current report title to determine report type
+            report_title = self.report_title.cget("text")
+            
+            # Generate default filename based on report type and date range
+            from_date = self.from_date.get()
+            to_date = self.to_date.get()
+            date_str = f"{from_date}_to_{to_date}" if from_date != to_date else from_date
+            
+            if "Daily Sales" in report_title:
+                filename = f"daily_sales_report_{date_str}.csv"
+            elif "Staff Performance" in report_title:
+                filename = f"staff_performance_report_{date_str}.csv"
+            elif "Bills Summary" in report_title:
+                filename = f"bills_summary_report_{date_str}.csv"
+            elif "Payment Mode" in report_title:
+                filename = f"payment_mode_report_{date_str}.csv"
+            elif "GST Summary" in report_title:
+                filename = f"gst_summary_report_{date_str}.csv"
+            else:
+                filename = f"report_{date_str}.csv"
+            
+            # Ask user for file location
+            file_path = filedialog.asksaveasfilename(
+                title="Save CSV Report",
+                initialfile=filename,
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            
+            if not file_path:
+                return
+            
+            # Export based on current treeview columns and data
+            columns = self.report_tree['columns']
+            
+            with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                
+                # Write header
+                writer.writerow(columns)
+                
+                # Write data from treeview
+                for child in self.report_tree.get_children():
+                    row_data = self.report_tree.item(child, 'values')
+                    writer.writerow(row_data)
+                
+                # Add summary section if available
+                summary_text = self.summary_text.get(1.0, tk.END).strip()
+                if summary_text:
+                    writer.writerow([])  # Empty row
+                    writer.writerow(["=== SUMMARY ==="])
+                    for line in summary_text.split('\n'):
+                        if line.strip():
+                            writer.writerow([line.strip()])
+            
+            messagebox.showinfo("Export Successful", f"Report exported to:\n{file_path}")
+            
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export CSV: {e}")
     
     def print_report(self):
         """Print current report"""

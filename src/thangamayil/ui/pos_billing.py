@@ -1573,16 +1573,18 @@ class BillDetailsWindow:
                 if gst_percentage > 0:
                     bill_lines.append(f"  GST: {gst_percentage:.1f}% = +{gst_amount:.0f}")
             
-            bill_lines.append("-" * line_width)
+            bill_lines.append("=" * line_width)
+            bill_lines.append("BILL SUMMARY".center(line_width))
+            bill_lines.append("=" * line_width)
             
-            # Summary
+            # Summary calculations
             bill_discount_amount = self.bill_data.get('discount_amount', 0)
             cgst_amount = self.bill_data.get('cgst_amount', 0)
             sgst_amount = self.bill_data.get('sgst_amount', 0)
             igst_amount = self.bill_data.get('igst_amount', 0)
             round_off = self.bill_data.get('round_off', 0)
             
-            # Right-align summary values
+            # Subtotal and discounts section
             bill_lines.append(f"Subtotal:{str(int(subtotal)).rjust(line_width - 9)}")
             
             if total_discount > 0:
@@ -1591,6 +1593,13 @@ class BillDetailsWindow:
             if bill_discount_amount > 0:
                 bill_lines.append(f"Bill Disc:{('-' + str(int(bill_discount_amount))).rjust(line_width - 10)}")
             
+            # GST section separator
+            if cgst_amount > 0 or igst_amount > 0:
+                bill_lines.append("-" * line_width)
+                bill_lines.append("GST BREAKDOWN".center(line_width))
+                bill_lines.append("-" * line_width)
+            
+            # GST calculations
             if cgst_amount > 0:
                 # Calculate average GST rate for display (assuming CGST = SGST)
                 taxable_amount = subtotal - total_discount - bill_discount_amount
@@ -1600,12 +1609,18 @@ class BillDetailsWindow:
                 bill_lines.append(f"SGST@{cgst_rate:.1f}%:{str(int(sgst_amount)).rjust(line_width - 12)}")
             
             if igst_amount > 0:
-                bill_lines.append(f"IGST:{str(int(igst_amount)).rjust(line_width - 5)}")
+                # Calculate IGST rate for display
+                taxable_amount = subtotal - total_discount - bill_discount_amount
+                igst_rate = (igst_amount / (taxable_amount / 100)) if taxable_amount > 0 else 0
+                bill_lines.append(f"IGST@{igst_rate:.1f}%:{str(int(igst_amount)).rjust(line_width - 12)}")
             
+            # Round off section
             if round_off != 0:
+                bill_lines.append("-" * line_width)
                 sign = "+" if round_off > 0 else ""
                 bill_lines.append(f"Round Off:{(sign + str(round_off)).rjust(line_width - 10)}")
             
+            # Final total section
             bill_lines.append("=" * line_width)
             bill_lines.append(f"TOTAL:{str(int(self.bill_data['grand_total'])).rjust(line_width - 6)}")
             bill_lines.append("=" * line_width)

@@ -92,8 +92,8 @@ class ThermalPrinter:
             
             bill_lines.append("-" * self.line_width)
             
-            # Items header
-            bill_lines.append("Item                    Qty  Rate   Total")
+            # Items header - right-aligned numeric columns
+            bill_lines.append("Item                    Qty   Rate  Total")
             bill_lines.append("-" * self.line_width)
             
             # Items
@@ -130,17 +130,25 @@ class ThermalPrinter:
                 if len(item_name) > 20:
                     item_name = item_name[:17] + "..."
                 
-                # Format line: "Item name           Qty  Rate   Total"
+                # Format line with right-aligned numeric columns
                 qty_str = str(quantity)
                 rate_str = f"{unit_price:.0f}"
                 total_str = f"{line_total:.0f}"
                 
-                # Build line with proper spacing
-                spaces_after_name = max(1, 20 - len(item_name))
-                spaces_after_qty = max(1, 4 - len(qty_str))
-                spaces_after_rate = max(1, 7 - len(rate_str))
+                # Right-align numeric columns: Item(24) + Qty(5) + Rate(6) + Total(8)
+                name_width = 24
+                qty_width = 5
+                rate_width = 6
+                total_width = 8
                 
-                line = f"{item_name}{' ' * spaces_after_name}{qty_str}{' ' * spaces_after_qty}{rate_str}{' ' * spaces_after_rate}{total_str}"
+                # Truncate item name if needed
+                if len(item_name) > name_width:
+                    display_name = item_name[:name_width-3] + "..."
+                else:
+                    display_name = item_name
+                
+                # Build line with right-aligned columns
+                line = f"{display_name:<{name_width}}{qty_str:>{qty_width}}{rate_str:>{rate_width}}{total_str:>{total_width}}"
                 bill_lines.append(line)
                 
                 # Add discount info if applicable
@@ -151,16 +159,18 @@ class ThermalPrinter:
                 if gst_percentage > 0:
                     bill_lines.append(f"  GST: {gst_percentage:.1f}% = +{gst_amount:.0f}")
             
-            bill_lines.append("-" * self.line_width)
+            bill_lines.append("=" * self.line_width)
+            bill_lines.append("BILL SUMMARY".center(self.line_width))
+            bill_lines.append("=" * self.line_width)
             
-            # Summary
+            # Summary calculations
             bill_discount_amount = bill_data['discount_amount'] if bill_data['discount_amount'] is not None else 0
             cgst_amount = bill_data['cgst_amount'] if bill_data['cgst_amount'] is not None else 0
             sgst_amount = bill_data['sgst_amount'] if bill_data['sgst_amount'] is not None else 0
             igst_amount = bill_data['igst_amount'] if bill_data['igst_amount'] is not None else 0
             round_off = bill_data['round_off'] if bill_data['round_off'] is not None else 0
             
-            # Right-align summary values
+            # Subtotal and discounts section
             bill_lines.append(f"Subtotal:{str(int(subtotal)).rjust(self.line_width - 9)}")
             
             if total_discount > 0:
@@ -169,6 +179,13 @@ class ThermalPrinter:
             if bill_discount_amount > 0:
                 bill_lines.append(f"Bill Disc:{('-' + str(int(bill_discount_amount))).rjust(self.line_width - 10)}")
             
+            # GST section separator
+            if cgst_amount > 0 or igst_amount > 0:
+                bill_lines.append("-" * self.line_width)
+                bill_lines.append("GST BREAKDOWN".center(self.line_width))
+                bill_lines.append("-" * self.line_width)
+            
+            # GST calculations
             if cgst_amount > 0:
                 # Calculate average GST rate for display (assuming CGST = SGST)
                 taxable_amount = subtotal - total_discount - bill_discount_amount
@@ -178,12 +195,18 @@ class ThermalPrinter:
                 bill_lines.append(f"SGST@{cgst_rate:.1f}%:{str(int(sgst_amount)).rjust(self.line_width - 12)}")
             
             if igst_amount > 0:
-                bill_lines.append(f"IGST:{str(int(igst_amount)).rjust(self.line_width - 5)}")
+                # Calculate IGST rate for display
+                taxable_amount = subtotal - total_discount - bill_discount_amount
+                igst_rate = (igst_amount / (taxable_amount / 100)) if taxable_amount > 0 else 0
+                bill_lines.append(f"IGST@{igst_rate:.1f}%:{str(int(igst_amount)).rjust(self.line_width - 12)}")
             
+            # Round off section
             if round_off != 0:
+                bill_lines.append("-" * self.line_width)
                 sign = "+" if round_off > 0 else ""
                 bill_lines.append(f"Round Off:{(sign + str(round_off)).rjust(self.line_width - 10)}")
             
+            # Final total section
             bill_lines.append("=" * self.line_width)
             bill_lines.append(f"TOTAL:{str(int(bill_data['grand_total'])).rjust(self.line_width - 6)}")
             bill_lines.append("=" * self.line_width)
@@ -341,8 +364,8 @@ class ThermalPrinter:
             bill_lines.append("Customer: Preview Mode")
             bill_lines.append("-" * self.line_width)
             
-            # Items header
-            bill_lines.append("Item                    Qty  Rate   Total")
+            # Items header - right-aligned numeric columns
+            bill_lines.append("Item                    Qty   Rate  Total")
             bill_lines.append("-" * self.line_width)
             
             # Items
@@ -372,17 +395,25 @@ class ThermalPrinter:
                 if len(item_name) > 20:
                     item_name = item_name[:17] + "..."
                 
-                # Format line: "Item name           Qty  Rate   Total"
+                # Format line with right-aligned numeric columns
                 qty_str = str(quantity)
                 rate_str = f"{unit_price:.0f}"
                 total_str = f"{line_total:.0f}"
                 
-                # Build line with proper spacing
-                spaces_after_name = max(1, 20 - len(item_name))
-                spaces_after_qty = max(1, 4 - len(qty_str))
-                spaces_after_rate = max(1, 7 - len(rate_str))
+                # Right-align numeric columns: Item(24) + Qty(5) + Rate(6) + Total(8)
+                name_width = 24
+                qty_width = 5
+                rate_width = 6
+                total_width = 8
                 
-                line = f"{item_name}{' ' * spaces_after_name}{qty_str}{' ' * spaces_after_qty}{rate_str}{' ' * spaces_after_rate}{total_str}"
+                # Truncate item name if needed
+                if len(item_name) > name_width:
+                    display_name = item_name[:name_width-3] + "..."
+                else:
+                    display_name = item_name
+                
+                # Build line with right-aligned columns
+                line = f"{display_name:<{name_width}}{qty_str:>{qty_width}}{rate_str:>{rate_width}}{total_str:>{total_width}}"
                 bill_lines.append(line)
                 
                 # Add discount info if applicable
@@ -393,15 +424,17 @@ class ThermalPrinter:
                 if gst_percentage > 0:
                     bill_lines.append(f"  GST: {gst_percentage:.1f}% = +{gst_amount:.0f}")
             
-            bill_lines.append("-" * self.line_width)
+            bill_lines.append("=" * self.line_width)
+            bill_lines.append("BILL SUMMARY".center(self.line_width))
+            bill_lines.append("=" * self.line_width)
             
-            # Summary
+            # Summary section
             bill_lines.append(f"Subtotal:{str(int(subtotal)).rjust(self.line_width - 9)}")
             
             if total_discount > 0:
                 bill_lines.append(f"Item Disc:{('-' + str(int(total_discount))).rjust(self.line_width - 10)}")
             
-            # Add GST breakdown to preview
+            # Get GST amounts from preview data
             bill_discount_amount = temp_bill_data.get('discount_amount', 0)
             cgst_amount = temp_bill_data.get('cgst_amount', 0) 
             sgst_amount = temp_bill_data.get('sgst_amount', 0)
@@ -410,7 +443,12 @@ class ThermalPrinter:
             if bill_discount_amount > 0:
                 bill_lines.append(f"Bill Disc:{('-' + str(int(bill_discount_amount))).rjust(self.line_width - 10)}")
             
+            # GST section separator
             if cgst_amount > 0:
+                bill_lines.append("-" * self.line_width)
+                bill_lines.append("GST BREAKDOWN".center(self.line_width))
+                bill_lines.append("-" * self.line_width)
+                
                 # Calculate average GST rate for display (assuming CGST = SGST)
                 taxable_amount = subtotal - total_discount - bill_discount_amount
                 total_gst_rate = (cgst_amount + sgst_amount) / (taxable_amount / 100) if taxable_amount > 0 else 0
@@ -418,10 +456,13 @@ class ThermalPrinter:
                 bill_lines.append(f"CGST@{cgst_rate:.1f}%:{str(int(cgst_amount)).rjust(self.line_width - 12)}")
                 bill_lines.append(f"SGST@{cgst_rate:.1f}%:{str(int(sgst_amount)).rjust(self.line_width - 12)}")
             
+            # Round off section
             if round_off != 0:
+                bill_lines.append("-" * self.line_width)
                 sign = "+" if round_off > 0 else ""
                 bill_lines.append(f"Round Off:{(sign + str(round_off)).rjust(self.line_width - 10)}")
             
+            # Final total section
             bill_lines.append("=" * self.line_width)
             bill_lines.append(f"TOTAL:{str(int(temp_bill_data['grand_total'])).rjust(self.line_width - 6)}")
             bill_lines.append("=" * self.line_width)

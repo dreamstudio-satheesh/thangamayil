@@ -159,6 +159,8 @@ class BillManagementWindow:
         # Bulk operations
         ttk.Button(buttons_frame, text="🗑️ Delete Empty Bills", command=self.delete_empty_bills, 
                   width=18).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(buttons_frame, text="📊 Export CSV", command=self.export_to_csv, 
+                  width=12).pack(side=tk.LEFT, padx=(0, 5))
         
         ttk.Button(buttons_frame, text="❌ Close", command=self.window.destroy, 
                   width=12).pack(side=tk.RIGHT)
@@ -252,6 +254,79 @@ class BillManagementWindow:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load bills: {e}")
     
+    def export_to_csv(self):
+        """Export bills data to CSV file"""
+        try:
+            import csv
+            from tkinter import filedialog
+            from datetime import datetime
+            
+            if not self.bills_data:
+                messagebox.showwarning("No Data", "No bills to export. Please load bills first.")
+                return
+            
+            # Ask user for file location
+            default_filename = f"bills_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            filename = filedialog.asksaveasfilename(
+                title="Save CSV File",
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                initialfile=default_filename
+            )
+            
+            if not filename:
+                return
+            
+            # Prepare CSV data
+            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                
+                # Write header
+                writer.writerow([
+                    'Invoice Number', 'Date', 'Customer', 'Items Count', 
+                    'Subtotal', 'CGST Amount', 'SGST Amount', 'IGST Amount',
+                    'Discount Amount', 'Round Off', 'Grand Total', 'Payment Mode', 
+                    'Status', 'Staff ID'
+                ])
+                
+                # Write bill data
+                for bill_info in self.bills_data:
+                    bill = bill_info['bill_data']
+                    
+                    # Format date for CSV
+                    try:
+                        bill_date = datetime.strptime(bill['bill_date'], '%Y-%m-%d %H:%M:%S')
+                        formatted_date = bill_date.strftime('%d/%m/%Y %H:%M')
+                    except:
+                        formatted_date = bill['bill_date']
+                    
+                    # Prepare row data (handle sqlite3.Row objects)
+                    row = [
+                        bill['invoice_number'],
+                        formatted_date,
+                        bill['customer_name'] if bill['customer_name'] else 'Walk-in',
+                        bill['item_count'] if bill['item_count'] else 0,
+                        f"₹{bill['subtotal'] if bill['subtotal'] else 0:.2f}",
+                        f"₹{bill['cgst_amount'] if bill['cgst_amount'] else 0:.2f}",
+                        f"₹{bill['sgst_amount'] if bill['sgst_amount'] else 0:.2f}",
+                        f"₹{bill['igst_amount'] if bill['igst_amount'] else 0:.2f}",
+                        f"₹{bill['discount_amount'] if bill['discount_amount'] else 0:.2f}",
+                        f"₹{bill['round_off'] if bill['round_off'] else 0:.2f}",
+                        f"₹{bill['grand_total']:.2f}",
+                        bill['payment_mode'],
+                        "Cancelled" if bill['is_cancelled'] else "Active",
+                        bill['staff_id'] if bill['staff_id'] else ''
+                    ]
+                    
+                    writer.writerow(row)
+            
+            messagebox.showinfo("Export Complete", 
+                f"Bills data exported successfully to:\n{filename}\n\n"
+                f"Total records: {len(self.bills_data)}")
+                
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export CSV: {e}")
+    
     def get_selected_bill(self):
         """Get the currently selected bill data"""
         selection = self.bills_tree.selection()
@@ -302,7 +377,7 @@ class BillManagementWindow:
                 return
         
         # Check if bill has items before printing
-        if bill.get('item_count', 0) == 0:
+        if bill['item_count'] == 0:
             response = messagebox.askyesnocancel("Empty Bill", 
                 f"Bill {bill['invoice_number']} has no items.\n\n" +
                 "• Click 'Yes' to delete this empty bill\n" +
@@ -338,7 +413,7 @@ class BillManagementWindow:
                 return
         
         # Check if bill has items before previewing
-        if bill.get('item_count', 0) == 0:
+        if bill['item_count'] == 0:
             messagebox.showwarning("Cannot Preview", 
                 f"Bill {bill['invoice_number']} has no items and cannot be previewed.")
             return
