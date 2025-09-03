@@ -37,11 +37,13 @@ class ThermalPrinter:
         try:
             from ..database.connection import db
             
-            # Get bill items from database
+            # Get bill items from database with HSN Code
             items_query = '''
-            SELECT * FROM bill_items 
-            WHERE bill_id = ? 
-            ORDER BY bill_item_id
+            SELECT bi.*, i.hsn_code 
+            FROM bill_items bi
+            LEFT JOIN items i ON bi.item_name = i.item_name
+            WHERE bi.bill_id = ? 
+            ORDER BY bi.bill_item_id
             '''
             bill_items = db.execute_query(items_query, (bill_data['bill_id'],))
             
@@ -92,8 +94,10 @@ class ThermalPrinter:
             
             bill_lines.append("-" * self.line_width)
             
-            # Items header - right-aligned numeric columns
-            bill_lines.append("Item                    Qty   Rate  Total")
+            # Items header - right-aligned numeric columns  
+            # Format: Item(32) + Qty(5) + Rate(7) + Total(8) = 52 chars
+            header_line = f"{'Item':<32}{'Qty':>5}{'Rate':>7}{'Total':>8}"
+            bill_lines.append(header_line)
             bill_lines.append("-" * self.line_width)
             
             # Items
@@ -121,25 +125,23 @@ class ThermalPrinter:
                 total_discount += discount_amount
                 total_gst += gst_amount
                 
-                # Format item name (truncate if too long)
+                # Format item name and get HSN code
                 try:
                     item_name = str(item['item_name'] if item['item_name'] is not None else 'Unknown Item')
+                    hsn_code = str(item['hsn_code'] if item.get('hsn_code') else '')
                 except KeyError:
                     raise Exception(f"Missing 'item_name' column in bill_items. Available columns: {list(item.keys()) if hasattr(item, 'keys') else 'Unknown'}")
-                
-                if len(item_name) > 20:
-                    item_name = item_name[:17] + "..."
                 
                 # Format line with right-aligned numeric columns
                 qty_str = str(quantity)
                 rate_str = f"{unit_price:.0f}"
                 total_str = f"{line_total:.0f}"
                 
-                # Right-align numeric columns: Item(24) + Qty(5) + Rate(6) + Total(8)
-                name_width = 24
-                qty_width = 5
-                rate_width = 6
-                total_width = 8
+                # Column widths for 64-character thermal printer - increased item width
+                name_width = 32  # Item name (increased from 25)
+                qty_width = 5    # Quantity  
+                rate_width = 7   # Rate
+                total_width = 8  # Total
                 
                 # Truncate item name if needed
                 if len(item_name) > name_width:
@@ -147,9 +149,13 @@ class ThermalPrinter:
                 else:
                     display_name = item_name
                 
-                # Build line with right-aligned columns
+                # Build line with properly right-aligned numeric columns
                 line = f"{display_name:<{name_width}}{qty_str:>{qty_width}}{rate_str:>{rate_width}}{total_str:>{total_width}}"
                 bill_lines.append(line)
+                
+                # Add HSN Code if available
+                if hsn_code:
+                    bill_lines.append(f"  HSN: {hsn_code}")
                 
                 # Add discount info if applicable
                 if discount_percentage > 0:
@@ -364,8 +370,10 @@ class ThermalPrinter:
             bill_lines.append("Customer: Preview Mode")
             bill_lines.append("-" * self.line_width)
             
-            # Items header - right-aligned numeric columns
-            bill_lines.append("Item                    Qty   Rate  Total")
+            # Items header - right-aligned numeric columns  
+            # Format: Item(32) + Qty(5) + Rate(7) + Total(8) = 52 chars
+            header_line = f"{'Item':<32}{'Qty':>5}{'Rate':>7}{'Total':>8}"
+            bill_lines.append(header_line)
             bill_lines.append("-" * self.line_width)
             
             # Items
@@ -400,11 +408,11 @@ class ThermalPrinter:
                 rate_str = f"{unit_price:.0f}"
                 total_str = f"{line_total:.0f}"
                 
-                # Right-align numeric columns: Item(24) + Qty(5) + Rate(6) + Total(8)
-                name_width = 24
-                qty_width = 5
-                rate_width = 6
-                total_width = 8
+                # Column widths for 64-character thermal printer - increased item width
+                name_width = 32  # Item name (increased from 25)
+                qty_width = 5    # Quantity  
+                rate_width = 7   # Rate
+                total_width = 8  # Total
                 
                 # Truncate item name if needed
                 if len(item_name) > name_width:
@@ -412,7 +420,7 @@ class ThermalPrinter:
                 else:
                     display_name = item_name
                 
-                # Build line with right-aligned columns
+                # Build line with properly right-aligned numeric columns
                 line = f"{display_name:<{name_width}}{qty_str:>{qty_width}}{rate_str:>{rate_width}}{total_str:>{total_width}}"
                 bill_lines.append(line)
                 

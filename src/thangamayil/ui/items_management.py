@@ -131,13 +131,14 @@ class ItemsManagementWindow:
         tree_frame.rowconfigure(0, weight=1)
         
         # Create treeview
-        columns = ('ID', 'Barcode', 'Name', 'Category', 'Price', 'GST%', 'Stock', 'Status')
+        columns = ('ID', 'Barcode', 'Name', 'HSN', 'Category', 'Price', 'GST%', 'Stock', 'Status')
         self.items_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
         
         # Configure columns
         self.items_tree.heading('ID', text='ID')
         self.items_tree.heading('Barcode', text='Barcode')
         self.items_tree.heading('Name', text='Item Name')
+        self.items_tree.heading('HSN', text='HSN Code')
         self.items_tree.heading('Category', text='Category')
         self.items_tree.heading('Price', text='Price (₹)')
         self.items_tree.heading('GST%', text='GST%')
@@ -147,8 +148,9 @@ class ItemsManagementWindow:
         # Configure column widths
         self.items_tree.column('ID', width=50)
         self.items_tree.column('Barcode', width=100)
-        self.items_tree.column('Name', width=200)
-        self.items_tree.column('Category', width=120)
+        self.items_tree.column('Name', width=180)
+        self.items_tree.column('HSN', width=80)
+        self.items_tree.column('Category', width=100)
         self.items_tree.column('Price', width=80)
         self.items_tree.column('GST%', width=60)
         self.items_tree.column('Stock', width=80)
@@ -208,6 +210,7 @@ class ItemsManagementWindow:
                 item['item_id'],
                 item['barcode'] or '',
                 item['item_name'],
+                item.get('hsn_code', '') or '',
                 item['category_name'] or 'N/A',
                 f"{item['price']:.2f}",
                 f"{item['gst_percentage']:.1f}",
@@ -392,6 +395,12 @@ class ItemEditDialog:
         self.barcode_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
         row += 1
         
+        # HSN Code
+        ttk.Label(fields_frame, text="HSN Code:").grid(row=row, column=0, sticky=tk.W, pady=5)
+        self.hsn_entry = ttk.Entry(fields_frame, width=40)
+        self.hsn_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        row += 1
+        
         # Category
         ttk.Label(fields_frame, text="Category:").grid(row=row, column=0, sticky=tk.W, pady=5)
         category_names = [""] + [cat['category_name'] for cat in self.categories]
@@ -445,6 +454,9 @@ class ItemEditDialog:
         self.name_entry.insert(0, self.item['item_name'])
         if self.item['barcode']:
             self.barcode_entry.insert(0, self.item['barcode'])
+        
+        if self.item.get('hsn_code'):
+            self.hsn_entry.insert(0, self.item['hsn_code'])
         
         if self.item['category_name']:
             self.category_var.set(self.item['category_name'])
@@ -516,9 +528,11 @@ class ItemEditDialog:
                 category_id = category['category_id']
         
         # Prepare item data
+        hsn_code = self.hsn_entry.get().strip() or None
         item_data = {
             'item_name': name,
             'barcode': barcode,
+            'hsn_code': hsn_code,
             'category_id': category_id,
             'price': price,
             'gst_percentage': gst_percentage,

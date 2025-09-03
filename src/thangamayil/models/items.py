@@ -97,12 +97,13 @@ class ItemsManager:
             db.execute_insert(
                 """
                 INSERT INTO items 
-                (barcode, item_name, category_id, price, gst_percentage, stock_quantity, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, 1)
+                (barcode, item_name, hsn_code, category_id, price, gst_percentage, stock_quantity, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
                 """,
                 (
                     item_data.get('barcode'),
                     item_data['item_name'],
+                    item_data.get('hsn_code'),
                     item_data.get('category_id'),
                     item_data['price'],
                     item_data.get('gst_percentage', 5.0),
@@ -121,7 +122,7 @@ class ItemsManager:
             db.execute_update(
                 """
                 UPDATE items SET 
-                barcode = ?, item_name = ?, category_id = ?, price = ?, 
+                barcode = ?, item_name = ?, hsn_code = ?, category_id = ?, price = ?, 
                 gst_percentage = ?, stock_quantity = ?, is_active = ?,
                 modified_at = CURRENT_TIMESTAMP
                 WHERE item_id = ?
@@ -129,6 +130,7 @@ class ItemsManager:
                 (
                     item_data.get('barcode'),
                     item_data['item_name'],
+                    item_data.get('hsn_code'),
                     item_data.get('category_id'),
                     item_data['price'],
                     item_data.get('gst_percentage', 5.0),

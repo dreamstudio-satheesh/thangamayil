@@ -110,6 +110,14 @@ class DatabaseConnection:
                 )
                 print("Migration: Added default Cash Customer")
             
+            # Migration 3: Add hsn_code column to items table if it doesn't exist
+            cursor.execute("PRAGMA table_info(items)")
+            item_columns = [row[1] for row in cursor.fetchall()]
+            
+            if 'hsn_code' not in item_columns:
+                cursor.execute("ALTER TABLE items ADD COLUMN hsn_code TEXT")
+                print("Migration: Added hsn_code column to items table")
+            
             self.connection.commit()
             
         except Exception as e:

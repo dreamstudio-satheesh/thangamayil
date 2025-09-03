@@ -30,6 +30,7 @@ CREATE TABLE items (
     item_id INTEGER PRIMARY KEY AUTOINCREMENT,
     barcode TEXT UNIQUE,
     item_name TEXT NOT NULL,
+    hsn_code TEXT,  -- HSN (Harmonized System of Nomenclature) Code for GST
     category_id INTEGER,
     price REAL NOT NULL,
     gst_percentage REAL DEFAULT 5.0,  -- GST % (0–28)

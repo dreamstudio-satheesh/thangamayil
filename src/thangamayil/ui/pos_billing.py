@@ -176,11 +176,12 @@ class POSBillingWindow:
         items_frame.rowconfigure(0, weight=1)
         
         # Bill items tree
-        columns = ('Item', 'Qty', 'Price', 'Disc%', 'GST%', 'Total')
+        columns = ('Item', 'HSN', 'Qty', 'Price', 'Disc%', 'GST%', 'Total')
         self.bill_tree = ttk.Treeview(items_frame, columns=columns, show='headings', height=12)
         
         # Configure columns
         self.bill_tree.heading('Item', text='Item Name')
+        self.bill_tree.heading('HSN', text='HSN')
         self.bill_tree.heading('Qty', text='Qty')
         self.bill_tree.heading('Price', text='Price')
         self.bill_tree.heading('Disc%', text='Disc%')
@@ -188,7 +189,8 @@ class POSBillingWindow:
         self.bill_tree.heading('Total', text='Total')
         
         # Configure column widths
-        self.bill_tree.column('Item', width=200)
+        self.bill_tree.column('Item', width=180)
+        self.bill_tree.column('HSN', width=70)
         self.bill_tree.column('Qty', width=60)
         self.bill_tree.column('Price', width=80)
         self.bill_tree.column('Disc%', width=60)
@@ -469,6 +471,7 @@ class POSBillingWindow:
                 'item_id': item['item_id'],
                 'item_name': item['item_name'],
                 'barcode': item['barcode'],
+                'hsn_code': item.get('hsn_code', ''),
                 'quantity': quantity,
                 'unit_price': item['price'],
                 'gst_percentage': item['gst_percentage'],
@@ -489,6 +492,7 @@ class POSBillingWindow:
         for bill_item in self.bill_items:
             values = (
                 bill_item['item_name'],
+                bill_item.get('hsn_code', ''),
                 bill_item['quantity'],
                 f"₹{bill_item['unit_price']:.2f}",
                 f"{bill_item['discount_percentage']:.1f}%",
