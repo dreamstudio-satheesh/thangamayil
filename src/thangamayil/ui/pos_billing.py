@@ -58,6 +58,7 @@ class POSBillingWindow:
         # Bind keyboard shortcuts
         self.window.bind('<Control-w>', lambda e: self.window.destroy())
         self.window.bind('<Escape>', lambda e: self.window.destroy())
+        self.window.bind('<Control-u>', lambda e: self.create_new_customer())  # Ctrl+Shift+C for new customer
     
     def create_widgets(self):
         """Create the UI widgets"""
@@ -117,7 +118,8 @@ class POSBillingWindow:
         ttk.Label(entry_frame, text="Barcode:").grid(row=0, column=0, sticky=tk.W, pady=2)
         self.barcode_entry = ttk.Entry(entry_frame, textvariable=self.barcode_var, width=20)
         self.barcode_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(10, 10), pady=2)
-        self.barcode_entry.bind('<Return>', self.on_barcode_enter)
+        self.barcode_entry.bind('<Return>', self.on_barcode_scan)
+        self.barcode_entry.bind('<Tab>', self.on_barcode_scan)
         
         ttk.Button(entry_frame, text="Add", command=self.add_by_barcode).grid(row=0, column=2, pady=2)
         
@@ -298,8 +300,8 @@ class POSBillingWindow:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start new bill: {e}")
     
-    def on_barcode_enter(self, event):
-        """Handle barcode entry"""
+    def on_barcode_scan(self, event):
+        """Handle barcode scan (Enter or Tab key)"""
         self.add_by_barcode()
     
     def add_by_barcode(self):
@@ -513,8 +515,8 @@ class POSBillingWindow:
         self.customer_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.customer_entry.bind('<KeyRelease>', self.on_customer_search)
         
-        ttk.Button(entry_button_frame, text="➕", command=self.create_new_customer, 
-                  width=3).pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(entry_button_frame, text="➕ New (Ctrl+U)", command=self.create_new_customer, 
+                  width=18).pack(side=tk.RIGHT, padx=(5, 0))
         
         # Customer search results (hidden initially)
         self.customer_results_frame = ttk.Frame(customer_frame)
@@ -848,6 +850,10 @@ class CreateCustomerDialog:
         self.phone_entry = ttk.Entry(fields_frame, width=25, font=("Segoe UI", 11))
         self.phone_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=8, padx=(10, 0))
         
+        ttk.Label(fields_frame, text="Address:").grid(row=2, column=0, sticky=tk.W, pady=8)
+        self.address_entry = ttk.Entry(fields_frame, width=25, font=("Segoe UI", 11))
+        self.address_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=8, padx=(10, 0))
+        
         # Required field note
         ttk.Label(main_frame, text="* Required field", 
                  font=("Segoe UI", 9), foreground="gray").pack(anchor=tk.W)
@@ -857,12 +863,13 @@ class CreateCustomerDialog:
         buttons_frame.pack(fill=tk.X, pady=(20, 0))
         
         ttk.Button(buttons_frame, text="✓ Create", command=self.create_customer,
-                  style="Accent.TButton").pack(side=tk.RIGHT, padx=(5, 0))
-        ttk.Button(buttons_frame, text="✗ Cancel", command=self.dialog.destroy).pack(side=tk.RIGHT)
+                  style="Accent.TButton", width=12).pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(buttons_frame, text="✗ Cancel", command=self.dialog.destroy, 
+                  width=12).pack(side=tk.RIGHT)
         
         # Bind Enter key
-        self.dialog.bind('<Return>', lambda e: self.create_customer())
-        self.dialog.bind('<Escape>', lambda e: self.dialog.destroy())
+        self.dialog.bind('<Return>', lambda _: self.create_customer())
+        self.dialog.bind('<Escape>', lambda _: self.dialog.destroy())
     
     def create_customer(self):
         """Create the customer"""
@@ -873,39 +880,45 @@ class CreateCustomerDialog:
             return
         
         phone_number = self.phone_entry.get().strip()
-        if phone_number and not phone_number.replace('+', '').replace('-', '').replace(' ', '').isdigit():
-            messagebox.showerror("Error", "Please enter a valid phone number")
-            self.phone_entry.focus()
-            return
+        if phone_number:
+            # Basic phone number validation - allow digits, spaces, hyphens, plus sign
+            cleaned_phone = phone_number.replace('+', '').replace('-', '').replace(' ', '')
+            if not cleaned_phone.isdigit() or len(cleaned_phone) < 10:
+                messagebox.showerror("Error", "Please enter a valid phone number (minimum 10 digits)")
+                self.phone_entry.focus()
+                return
+        
+        address = self.address_entry.get().strip()
         
         try:
             from ..database.connection import db
             
-            # Check if customer already exists
-            existing = db.execute_query(
-                "SELECT customer_id FROM customers WHERE customer_name = ? OR phone_number = ?",
-                (customer_name, phone_number or None)
-            )
-            
-            if existing:
-                messagebox.showerror("Error", "Customer with this name or phone number already exists")
-                return
+            # Check if phone number already exists (only if phone number is provided)
+            if phone_number:
+                existing = db.execute_query(
+                    "SELECT customer_id FROM customers WHERE phone_number = ?",
+                    (phone_number,)
+                )
+                
+                if existing:
+                    messagebox.showerror("Error", "Customer with this phone number already exists")
+                    return
             
             # Insert new customer
             query = '''
-            INSERT INTO customers (customer_name, phone_number)
-            VALUES (?, ?)
+            INSERT INTO customers (customer_name, phone_number, address)
+            VALUES (?, ?, ?)
             '''
             
-            cursor = db.execute_update(query, (customer_name, phone_number or None))
-            if cursor and cursor.rowcount > 0:
-                customer_id = cursor.lastrowid
+            customer_id = db.execute_insert(query, (customer_name, phone_number or None, address or None))
+            if customer_id:
                 
                 # Create result
                 self.result = {
                     'customer_id': customer_id,
                     'customer_name': customer_name,
-                    'phone_number': phone_number
+                    'phone_number': phone_number,
+                    'address': address
                 }
                 
                 messagebox.showinfo("Success", f"Customer '{customer_name}' created successfully!")

@@ -56,6 +56,9 @@ class DatabaseConnection:
                 # Hash the default admin password
                 self.update_admin_password()
                 
+                # Run database migrations
+                self.run_migrations()
+                
                 print("Database initialized successfully")
             else:
                 raise FileNotFoundError("db.sql schema file not found")
@@ -84,6 +87,33 @@ class DatabaseConnection:
                 
         except Exception as e:
             print(f"Warning: Could not hash admin password: {e}")
+    
+    def run_migrations(self):
+        """Run database migrations for schema updates"""
+        try:
+            cursor = self.connection.cursor()
+            
+            # Migration 1: Add address column to customers table if it doesn't exist
+            cursor.execute("PRAGMA table_info(customers)")
+            columns = [row[1] for row in cursor.fetchall()]
+            
+            if 'address' not in columns:
+                cursor.execute("ALTER TABLE customers ADD COLUMN address TEXT")
+                print("Migration: Added address column to customers table")
+            
+            # Migration 2: Insert default Cash customer if it doesn't exist
+            cursor.execute("SELECT customer_id FROM customers WHERE phone_number = '1234567899'")
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO customers (customer_name, phone_number, address) VALUES (?, ?, ?)",
+                    ('Cash Customer', '1234567899', 'Walk-in Customer')
+                )
+                print("Migration: Added default Cash Customer")
+            
+            self.connection.commit()
+            
+        except Exception as e:
+            print(f"Warning: Migration failed: {e}")
     
     def execute_query(self, query: str, params: tuple = ()) -> List[sqlite3.Row]:
         """Execute SELECT query and return results"""

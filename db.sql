@@ -13,6 +13,7 @@ CREATE TABLE customers (
     customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
     customer_name TEXT NOT NULL,
     phone_number TEXT UNIQUE,
+    address TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -111,6 +112,12 @@ CREATE TABLE backup_log (
     backup_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Schema migrations tracking
+CREATE TABLE schema_migrations (
+    migration_id TEXT PRIMARY KEY,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_items_barcode ON items(barcode);
 CREATE INDEX IF NOT EXISTS idx_items_name ON items(item_name);
@@ -141,3 +148,7 @@ INSERT OR IGNORE INTO settings (setting_key, setting_value, description) VALUES
 -- Insert Default Admin Staff (password: admin123)
 INSERT OR IGNORE INTO staff (staff_name, password_hash, is_active) VALUES 
 ('admin', 'admin123', 1);
+
+-- Insert Default Cash Customer
+INSERT OR IGNORE INTO customers (customer_name, phone_number, address) VALUES 
+('Cash Customer', '1234567899', 'Walk-in Customer');
