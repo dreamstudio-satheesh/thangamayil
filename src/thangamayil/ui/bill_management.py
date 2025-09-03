@@ -327,6 +327,39 @@ class BillManagementWindow:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print bill: {e}")
     
+    def preview_selected_bill(self):
+        """Preview selected bill in thermal printer format"""
+        bill = self.get_selected_bill()
+        if not bill:
+            return
+        
+        if bill['is_cancelled']:
+            if not messagebox.askyesno("Cancelled Bill", "This bill is cancelled. Preview anyway?"):
+                return
+        
+        # Check if bill has items before previewing
+        if bill.get('item_count', 0) == 0:
+            messagebox.showwarning("Cannot Preview", 
+                f"Bill {bill['invoice_number']} has no items and cannot be previewed.")
+            return
+        
+        # Generate preview using thermal printer
+        try:
+            from .thermal_printer import ThermalPrinter
+            printer = ThermalPrinter()
+            
+            # Generate thermal bill content for preview
+            content = printer.generate_thermal_bill(bill)
+            
+            if content:
+                # Show preview window
+                printer.show_print_preview(content, parent_window=self.window)
+            else:
+                messagebox.showerror("Error", "Failed to generate bill preview")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to preview bill: {e}")
+    
     def delete_selected_bill(self):
         """Delete selected bill"""
         bill = self.get_selected_bill()
