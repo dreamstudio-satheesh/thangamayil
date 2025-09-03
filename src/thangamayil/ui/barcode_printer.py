@@ -199,24 +199,41 @@ class BarcodePrinterWindow:
         
         # Sticker size optimized for 4-inch thermal printer
         ttk.Label(right_panel, text="Sticker Size:").grid(row=row, column=0, sticky=tk.W, pady=5)
-        self.size_var = tk.StringVar(value="Standard (4x3 cm)")
+        self.size_var = tk.StringVar(value="Standard (32 chars)")
         size_combo = ttk.Combobox(right_panel, textvariable=self.size_var, width=27,
                                  values=[
-                                     "Compact (4x2 cm) - 64 chars",
-                                     "Standard (4x3 cm) - 64 chars", 
-                                     "Large (4x4 cm) - 64 chars",
-                                     "Extra Large (4x5 cm) - 64 chars"
+                                     "Small (20 chars) - 3 per row",
+                                     "Standard (32 chars) - 2 per row", 
+                                     "Large (48 chars) - 1 per row",
+                                     "Full Width (64 chars) - 1 per row"
                                  ],
                                  state="readonly")
         size_combo.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        size_combo.bind('<<ComboboxSelected>>', self.on_size_change)
         row += 1
         
-        # Sticker width (characters)
+        # Stickers per row (auto-calculated based on size)
+        ttk.Label(right_panel, text="Stickers per Row:").grid(row=row, column=0, sticky=tk.W, pady=5)
+        self.per_row_var = tk.StringVar(value="2")
+        self.per_row_entry = ttk.Entry(right_panel, textvariable=self.per_row_var, 
+                                      width=28, state="readonly")
+        self.per_row_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        row += 1
+        
+        # Sticker width (characters) - auto-calculated
         ttk.Label(right_panel, text="Sticker Width:").grid(row=row, column=0, sticky=tk.W, pady=5)
-        self.width_var = tk.StringVar(value="64")
-        width_spinbox = ttk.Spinbox(right_panel, from_=32, to=80, textvariable=self.width_var, 
-                                   width=28)
-        width_spinbox.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        self.width_var = tk.StringVar(value="32")
+        self.width_entry = ttk.Entry(right_panel, textvariable=self.width_var, 
+                                    width=28, state="readonly")
+        self.width_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        row += 1
+        
+        # Spacing between stickers
+        ttk.Label(right_panel, text="Spacing (chars):").grid(row=row, column=0, sticky=tk.W, pady=5)
+        self.spacing_var = tk.StringVar(value="2")
+        spacing_spinbox = ttk.Spinbox(right_panel, from_=1, to=8, textvariable=self.spacing_var, 
+                                     width=28)
+        spacing_spinbox.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
         row += 1
         
         # Separator
@@ -329,6 +346,34 @@ class BarcodePrinterWindow:
             self.mrp_var.set(f"{self.selected_item['price']:.2f}")
             
             # Update preview
+            self.on_size_change()  # Update layout settings
+            self.update_preview()
+    
+    def on_size_change(self, event=None):
+        """Handle sticker size change and update layout settings"""
+        size_text = self.size_var.get()
+        
+        if "Small (20 chars)" in size_text:
+            width = 20
+            per_row = 3
+        elif "Standard (32 chars)" in size_text:
+            width = 32
+            per_row = 2
+        elif "Large (48 chars)" in size_text:
+            width = 48
+            per_row = 1
+        elif "Full Width (64 chars)" in size_text:
+            width = 64
+            per_row = 1
+        else:
+            width = 32
+            per_row = 2
+        
+        self.width_var.set(str(width))
+        self.per_row_var.set(str(per_row))
+        
+        # Update preview if window exists
+        if hasattr(self, 'preview_text'):
             self.update_preview()
     
     def update_preview(self):
@@ -345,7 +390,6 @@ class BarcodePrinterWindow:
         mrp = self.mrp_var.get().strip()
         quantity = int(self.quantity_var.get())
         size = self.size_var.get()
-        width = self.width_var.get()
         
         if not all([store_name, item_name, barcode, mrp]):
             self.preview_text.insert(tk.END, "Please fill in all required fields")
@@ -356,76 +400,130 @@ class BarcodePrinterWindow:
         self.preview_text.insert(tk.END, preview_content)
     
     def generate_sticker_content(self, store_name, item_name, barcode, mrp, quantity, size):
-        """Generate barcode sticker content optimized for 4-inch thermal printer"""
+        """Generate barcode sticker content with side-by-side layout"""
         content_lines = []
         
-        # Get sticker width from settings
+        # Get layout settings
         try:
             sticker_width = int(self.width_var.get())
+            per_row = int(self.per_row_var.get())
+            spacing = int(self.spacing_var.get())
         except ValueError:
-            sticker_width = 64  # Default for 4-inch thermal printer
+            sticker_width = 32
+            per_row = 2
+            spacing = 2
+        
+        # Calculate total width for thermal printer
+        total_width = 64  # 4-inch thermal printer
         
         # Header
-        content_lines.append("=" * sticker_width)
-        content_lines.append(f"BARCODE STICKER PREVIEW - {quantity} sticker(s)".center(sticker_width))
-        content_lines.append(f"Size: {size} | Width: {sticker_width} chars".center(sticker_width))
-        content_lines.append("=" * sticker_width)
+        content_lines.append("=" * total_width)
+        content_lines.append(f"BARCODE STICKERS - {quantity} sticker(s)".center(total_width))
+        content_lines.append(f"Size: {size} | {per_row} per row | Spacing: {spacing}".center(total_width))
+        content_lines.append("=" * total_width)
         content_lines.append("")
         
-        for i in range(quantity):
-            content_lines.append(f"STICKER #{i+1}".center(sticker_width))
-            content_lines.append("-" * sticker_width)
-            content_lines.append("")
+        # Generate stickers in rows
+        stickers_printed = 0
+        while stickers_printed < quantity:
+            # Calculate how many stickers in this row
+            stickers_in_row = min(per_row, quantity - stickers_printed)
             
-            # Store name (centered and bold-style)
-            content_lines.append("**" + store_name.center(sticker_width-4) + "**")
-            content_lines.append("")
+            # Generate individual sticker content
+            sticker_blocks = []
+            for i in range(stickers_in_row):
+                sticker_block = self.generate_single_sticker(store_name, item_name, barcode, mrp, 
+                                                           sticker_width, stickers_printed + i + 1)
+                sticker_blocks.append(sticker_block)
             
-            # Item name (wrapped if needed)
-            item_display_width = sticker_width - 4  # Leave margin
-            if len(item_name) > item_display_width:
-                words = item_name.split()
-                line1, line2 = "", ""
-                for word in words:
-                    if len(line1 + word + " ") <= item_display_width:
-                        line1 += word + " "
-                    else:
-                        line2 += word + " "
-                content_lines.append(line1.strip().center(sticker_width))
-                if line2.strip():
-                    content_lines.append(line2.strip().center(sticker_width))
+            # Combine stickers side by side
+            if per_row == 1:
+                # Single sticker - centered
+                for line in sticker_blocks[0]:
+                    content_lines.append(line.center(total_width))
             else:
-                content_lines.append(item_name.center(sticker_width))
+                # Multiple stickers - side by side
+                max_lines = max(len(block) for block in sticker_blocks)
+                
+                for line_idx in range(max_lines):
+                    combined_line = ""
+                    for sticker_idx, sticker_block in enumerate(sticker_blocks):
+                        if line_idx < len(sticker_block):
+                            sticker_line = sticker_block[line_idx]
+                        else:
+                            sticker_line = " " * sticker_width
+                        
+                        combined_line += sticker_line
+                        
+                        # Add spacing between stickers (except after last one)
+                        if sticker_idx < len(sticker_blocks) - 1:
+                            combined_line += " " * spacing
+                    
+                    content_lines.append(combined_line)
             
-            content_lines.append("")
+            stickers_printed += stickers_in_row
             
-            # Barcode representation (scaled to width)
-            content_lines.append("BARCODE:".center(sticker_width))
-            # Create barcode-like pattern scaled to sticker width
-            barcode_pattern = ""
-            pattern_chars = ["|", "|", "|", "|", " ", " ", "|", "|", " ", "|", " ", "|", "|", "|", "|", " ", " ", "|", "|", " ", "|", "|", "|", "|", "|", " ", " ", "|", "|", "|", " ", " ", "|", "|"]
-            # Scale pattern to fit sticker width
-            pattern_width = min(len(pattern_chars), sticker_width - 10)
-            scaled_pattern = "".join(pattern_chars[:pattern_width])
-            content_lines.append(scaled_pattern.center(sticker_width))
-            content_lines.append(barcode.center(sticker_width))
-            content_lines.append("")
-            
-            # MRP with formatting
-            mrp_line = f"MRP: ₹{mrp}"
-            content_lines.append(mrp_line.center(sticker_width))
-            content_lines.append("")
-            
-            # Separator between stickers
-            if i < quantity - 1:
-                content_lines.append("-" * sticker_width)
+            # Add separator between rows (except after last row)
+            if stickers_printed < quantity:
+                content_lines.append("-" * total_width)
                 content_lines.append("")
         
-        content_lines.append("=" * sticker_width)
-        content_lines.append(f"Generated: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}".center(sticker_width))
-        content_lines.append(f"Optimized for 4-inch thermal printer".center(sticker_width))
+        content_lines.append("")
+        content_lines.append("=" * total_width)
+        content_lines.append(f"Generated: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}".center(total_width))
+        content_lines.append(f"Optimized for 4-inch thermal printer".center(total_width))
         
         return "\n".join(content_lines)
+    
+    def generate_single_sticker(self, store_name, item_name, barcode, mrp, width, sticker_num):
+        """Generate content for a single sticker"""
+        lines = []
+        
+        # Sticker number and border
+        lines.append("-" * width)
+        lines.append(f"#{sticker_num}".center(width))
+        lines.append("")
+        
+        # Store name (bold-style, truncated if needed)
+        store_display = store_name[:width-4] if len(store_name) > width-4 else store_name
+        lines.append(("*" + store_display + "*").center(width))
+        lines.append("")
+        
+        # Item name (wrapped if needed)
+        item_display_width = width - 2
+        if len(item_name) > item_display_width:
+            words = item_name.split()
+            line1, line2 = "", ""
+            for word in words:
+                if len(line1 + word + " ") <= item_display_width:
+                    line1 += word + " "
+                else:
+                    line2 += word + " "
+            lines.append(line1.strip().center(width))
+            if line2.strip():
+                lines.append(line2.strip().center(width))
+        else:
+            lines.append(item_name.center(width))
+        
+        lines.append("")
+        
+        # Barcode representation
+        lines.append("BARCODE".center(width))
+        # Create barcode pattern scaled to sticker width
+        pattern_chars = ["|", "|", "|", " ", "|", " ", "|", "|", "|", " ", "|", "|", " ", "|", "|", "|", " ", "|", "|"]
+        pattern_width = min(len(pattern_chars), width - 4)
+        pattern = "".join(pattern_chars[:pattern_width])
+        lines.append(pattern.center(width))
+        lines.append(barcode.center(width))
+        lines.append("")
+        
+        # MRP
+        mrp_line = f"MRP: ₹{mrp}"
+        lines.append(mrp_line.center(width))
+        lines.append("")
+        lines.append("-" * width)
+        
+        return lines
     
     def preview_sticker(self):
         """Preview the sticker"""
@@ -616,10 +714,18 @@ class BarcodePrinterWindow:
         
         try:
             width = int(self.width_var.get())
-            if width < 32 or width > 80:
-                raise ValueError("Width must be between 32 and 80")
+            if width < 20 or width > 64:
+                raise ValueError("Width must be between 20 and 64")
         except ValueError:
-            messagebox.showwarning("Invalid Width", "Please enter a valid sticker width (32-80 characters)")
+            messagebox.showwarning("Invalid Width", "Please enter a valid sticker width (20-64 characters)")
+            return False
+        
+        try:
+            spacing = int(self.spacing_var.get())
+            if spacing < 1 or spacing > 8:
+                raise ValueError("Spacing must be between 1 and 8")
+        except ValueError:
+            messagebox.showwarning("Invalid Spacing", "Please enter a valid spacing (1-8 characters)")
             return False
         
         return True

@@ -94,9 +94,9 @@ class ThermalPrinter:
             
             bill_lines.append("-" * self.line_width)
             
-            # Items header - right-aligned numeric columns  
-            # Format: Item(32) + Qty(5) + Rate(7) + Total(8) = 52 chars
-            header_line = f"{'Item':<32}{'Qty':>5}{'Rate':>7}{'Total':>8}"
+            # Items header - HSN and GST% in same row  
+            # Format: Item(24) + HSN(8) + GST%(6) + Qty(5) + Rate(7) + Total(8) = 58 chars
+            header_line = f"{'Item':<24}{'HSN':<8}{'GST%':>6}{'Qty':>5}{'Rate':>7}{'Total':>8}"
             bill_lines.append(header_line)
             bill_lines.append("-" * self.line_width)
             
@@ -132,16 +132,20 @@ class ThermalPrinter:
                 except KeyError:
                     raise Exception(f"Missing 'item_name' column in bill_items. Available columns: {list(item.keys()) if hasattr(item, 'keys') else 'Unknown'}")
                 
-                # Format line with right-aligned numeric columns
+                # Format line with HSN and GST% in same row
                 qty_str = str(quantity)
                 rate_str = f"{unit_price:.0f}"
                 total_str = f"{line_total:.0f}"
+                hsn_str = hsn_code[:8] if hsn_code else ''
+                gst_str = f"{gst_percentage:.1f}%"
                 
-                # Column widths for 64-character thermal printer - increased item width
-                name_width = 32  # Item name (increased from 25)
-                qty_width = 5    # Quantity  
-                rate_width = 7   # Rate
-                total_width = 8  # Total
+                # Column widths: Item(24) + HSN(8) + GST%(6) + Qty(5) + Rate(7) + Total(8)
+                name_width = 24
+                hsn_width = 8
+                gst_width = 6
+                qty_width = 5
+                rate_width = 7
+                total_width = 8
                 
                 # Truncate item name if needed
                 if len(item_name) > name_width:
@@ -149,21 +153,13 @@ class ThermalPrinter:
                 else:
                     display_name = item_name
                 
-                # Build line with properly right-aligned numeric columns
-                line = f"{display_name:<{name_width}}{qty_str:>{qty_width}}{rate_str:>{rate_width}}{total_str:>{total_width}}"
+                # Build line with HSN, GST%, Qty, Rate, Total in same row
+                line = f"{display_name:<{name_width}}{hsn_str:<{hsn_width}}{gst_str:>{gst_width}}{qty_str:>{qty_width}}{rate_str:>{rate_width}}{total_str:>{total_width}}"
                 bill_lines.append(line)
                 
-                # Add HSN Code if available
-                if hsn_code:
-                    bill_lines.append(f"  HSN: {hsn_code}")
-                
-                # Add discount info if applicable
+                # Add discount info if applicable (on separate line)
                 if discount_percentage > 0:
                     bill_lines.append(f"  Disc: {discount_percentage:.1f}% = -{discount_amount:.0f}")
-                
-                # Add GST info
-                if gst_percentage > 0:
-                    bill_lines.append(f"  GST: {gst_percentage:.1f}% = +{gst_amount:.0f}")
             
             bill_lines.append("=" * self.line_width)
             bill_lines.append("BILL SUMMARY".center(self.line_width))
@@ -370,9 +366,9 @@ class ThermalPrinter:
             bill_lines.append("Customer: Preview Mode")
             bill_lines.append("-" * self.line_width)
             
-            # Items header - right-aligned numeric columns  
-            # Format: Item(32) + Qty(5) + Rate(7) + Total(8) = 52 chars
-            header_line = f"{'Item':<32}{'Qty':>5}{'Rate':>7}{'Total':>8}"
+            # Items header - HSN and GST% in same row  
+            # Format: Item(24) + HSN(8) + GST%(6) + Qty(5) + Rate(7) + Total(8) = 58 chars
+            header_line = f"{'Item':<24}{'HSN':<8}{'GST%':>6}{'Qty':>5}{'Rate':>7}{'Total':>8}"
             bill_lines.append(header_line)
             bill_lines.append("-" * self.line_width)
             
@@ -398,10 +394,9 @@ class ThermalPrinter:
                 total_discount += discount_amount
                 total_gst += gst_amount
                 
-                # Format item name (truncate if too long)
+                # Format item name and get HSN code
                 item_name = str(item['item_name'])
-                if len(item_name) > 20:
-                    item_name = item_name[:17] + "..."
+                hsn_code = str(item.get('hsn_code', '')) if item.get('hsn_code') else ''
                 
                 # Format line with right-aligned numeric columns
                 qty_str = str(quantity)
@@ -423,6 +418,10 @@ class ThermalPrinter:
                 # Build line with properly right-aligned numeric columns
                 line = f"{display_name:<{name_width}}{qty_str:>{qty_width}}{rate_str:>{rate_width}}{total_str:>{total_width}}"
                 bill_lines.append(line)
+                
+                # Add HSN Code if available
+                if hsn_code:
+                    bill_lines.append(f"  HSN: {hsn_code}")
                 
                 # Add discount info if applicable
                 if discount_percentage > 0:
